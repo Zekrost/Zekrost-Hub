@@ -1,0 +1,26 @@
+Zekrost Hub
+Copyright (C) 2026 Zekrost <tech@zekrost.com>
+
+This product is licensed under the GNU Affero General Public License
+version 3 (AGPL-3.0-only). See the LICENSE file for the full license
+text.
+
+Trademark notice: "Zekrost", "Zekrost Hub", "BikerOS" and "Nix.js"
+are trademarks of their respective owners. This notice does not grant
+any trademark rights.
+
+Third-party components:
+
+  - Nix.js — MIT License (c) Deijose Develop
+  - Gin — MIT License (c) Gin-Gonic
+  - CodeMirror 6 — MIT License (c) Marijn Haverbeke
+  - FlexSearch — Apache-2.0 (c) Thomas Wilburn
+  - Dexie — Apache-2.0 (c) David Fahlander
+  - modernc.org/sqlite — BSD-3-Clause (c) The Modernc Authors
+  - sqlc-generated code — MIT License (c) SQLC Authors
+  - Capacitor — MIT License (c) Ionic Contributors
+
+Open-core model: the self-hosted product is free and complete under
+AGPL-3.0. Paid convenience services (sync service, hosted cloud,
+team plans) are separate offerings and never restrict the self-hosted
+product.

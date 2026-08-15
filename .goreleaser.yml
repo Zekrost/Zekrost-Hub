@@ -1,0 +1,72 @@
+# GoReleaser — binarios multiplataforma + imagen Docker multi-arch
+# (sección 14): linux/amd64, linux/arm64 (Raspberry Pi es objetivo),
+# darwin, windows. Versionado semver estricto.
+version: 2
+
+project_name: hub
+
+before:
+  hooks:
+    - go mod tidy
+    - cd web && npm ci
+    - cd web && npm run build
+    - rm -rf internal/web/dist && cp -r web/dist internal/web/dist
+    - sqlc generate
+
+builds:
+  - id: hub
+    main: ./cmd/hub
+    binary: hub
+    ldflags:
+      - -s -w -X github.com/zekrost/hub/internal/server.Version={{ .Version }}
+    env:
+      - CGO_ENABLED=0
+    goos:
+      - linux
+      - darwin
+      - windows
+    goarch:
+      - amd64
+      - arm64
+    ignore:
+      - goos: windows
+        goarch: arm64
+
+archives:
+  - formats: [tar.gz]
+    name_template: "{{ .ProjectName }}_{{ .Version }}_{{ .Os }}_{{ .Arch }}"
+    format_overrides:
+      - goos: windows
+        formats: [zip]
+
+checksum:
+  name_template: "checksums.txt"
+
+dockers:
+  - id: hub-docker
+    use: buildx
+    goos: linux
+    goarch: amd64
+    dockerfile: Dockerfile.goreleaser
+    image_templates:
+      - "ghcr.io/zekrost/hub:{{ .Version }}"
+      - "ghcr.io/zekrost/hub:latest"
+    build_flag_templates:
+      - "--platform=linux/amd64"
+  - id: hub-docker-arm64
+    use: buildx
+    goos: linux
+    goarch: arm64
+    dockerfile: Dockerfile.goreleaser
+    image_templates:
+      - "ghcr.io/zekrost/hub:{{ .Version }}-arm64"
+      - "ghcr.io/zekrost/hub:latest-arm64"
+    build_flag_templates:
+      - "--platform=linux/arm64"
+
+changelog:
+  sort: asc
+  filters:
+    exclude:
+      - "^docs:"
+      - "^test:"

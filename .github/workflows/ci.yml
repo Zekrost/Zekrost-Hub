@@ -1,0 +1,99 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+    tags: ["v*"]
+  pull_request:
+
+env:
+  GO_VERSION: "1.26"
+  NODE_VERSION: "22"
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-go@v5
+        with:
+          go-version: ${{ env.GO_VERSION }}
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: npm
+          cache-dependency-path: web/package-lock.json
+
+      - name: Install sqlc
+        uses: sqlc-dev/setup-sqlc@v2
+        with:
+          sqlc-version: v1.31.1
+
+      - name: Frontend deps + typecheck
+        working-directory: web
+        run: |
+          npm ci
+          npx tsc --noEmit
+
+      - name: Frontend tests + build
+        working-directory: web
+        run: |
+          npx vitest run
+          npm run build
+
+      - name: Embed frontend + Go vet
+        run: |
+          rm -rf internal/web/dist && cp -r web/dist internal/web/dist
+          go vet ./...
+
+      - name: sqlc generate (diff check)
+        run: |
+          sqlc generate
+          git diff --exit-code -- internal/db || (echo "código sqlc desactualizado" && exit 1)
+
+      - name: Go tests
+        run: go test ./...
+
+  release:
+    if: startsWith(github.ref, 'refs/tags/v')
+    needs: test
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+      packages: write
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - uses: actions/setup-go@v5
+        with:
+          go-version: ${{ env.GO_VERSION }}
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: npm
+          cache-dependency-path: web/package-lock.json
+
+      - name: Install sqlc
+        uses: sqlc-dev/setup-sqlc@v2
+        with:
+          sqlc-version: v1.31.1
+
+      - name: Login to GHCR
+        uses: docker/login-action@v3
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: GoReleaser
+        uses: goreleaser/goreleaser-action@v6
+        with:
+          version: v2.17.1
+          args: release --clean
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
