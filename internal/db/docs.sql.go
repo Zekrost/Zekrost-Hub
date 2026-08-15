@@ -23,6 +23,8 @@ type CreateDocParams struct {
 	CreatedBy   string `json:"created_by"`
 }
 
+// Copyright (C) 2026 Zekrost <tech@zekrost.com>
+// SPDX-License-Identifier: AGPL-3.0-only
 func (q *Queries) CreateDoc(ctx context.Context, arg CreateDocParams) error {
 	_, err := q.db.ExecContext(ctx, createDoc,
 		arg.ID,

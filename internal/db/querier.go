@@ -10,8 +10,14 @@ import (
 
 type Querier interface {
 	AddMembership(ctx context.Context, arg AddMembershipParams) error
+	// Copyright (C) 2026 Zekrost <tech@zekrost.com>
+	// SPDX-License-Identifier: AGPL-3.0-only
 	CreateDoc(ctx context.Context, arg CreateDocParams) error
+	// Copyright (C) 2026 Zekrost <tech@zekrost.com>
+	// SPDX-License-Identifier: AGPL-3.0-only
 	CreateUser(ctx context.Context, arg CreateUserParams) error
+	// Copyright (C) 2026 Zekrost <tech@zekrost.com>
+	// SPDX-License-Identifier: AGPL-3.0-only
 	CreateWorkspace(ctx context.Context, arg CreateWorkspaceParams) error
 	DeleteTasksForDoc(ctx context.Context, docID string) error
 	GetChangesAfter(ctx context.Context, arg GetChangesAfterParams) ([]ChangeLog, error)
@@ -23,7 +29,11 @@ type Querier interface {
 	GetTaskByID(ctx context.Context, arg GetTaskByIDParams) (Task, error)
 	GetUserByEmail(ctx context.Context, email string) (User, error)
 	GetUserByID(ctx context.Context, id string) (User, error)
+	// Copyright (C) 2026 Zekrost <tech@zekrost.com>
+	// SPDX-License-Identifier: AGPL-3.0-only
 	GetWorkspaceByID(ctx context.Context, id string) (Workspace, error)
+	// Copyright (C) 2026 Zekrost <tech@zekrost.com>
+	// SPDX-License-Identifier: AGPL-3.0-only
 	// Sync delta (seccion 9): cursor monotono por workspace + push con
 	// deduplicacion por idempotency-key.
 	InsertChange(ctx context.Context, arg InsertChangeParams) (InsertChangeRow, error)
@@ -33,6 +43,8 @@ type Querier interface {
 	ListDocsByWorkspace(ctx context.Context, workspaceID string) ([]Doc, error)
 	ListTasksByDateRange(ctx context.Context, arg ListTasksByDateRangeParams) ([]Task, error)
 	ListTasksByProject(ctx context.Context, arg ListTasksByProjectParams) ([]Task, error)
+	// Copyright (C) 2026 Zekrost <tech@zekrost.com>
+	// SPDX-License-Identifier: AGPL-3.0-only
 	ListTasksByWorkspace(ctx context.Context, arg ListTasksByWorkspaceParams) ([]Task, error)
 	ListTasksDueToday(ctx context.Context, arg ListTasksDueTodayParams) ([]Task, error)
 	ListTasksMineToday(ctx context.Context, arg ListTasksMineTodayParams) ([]Task, error)

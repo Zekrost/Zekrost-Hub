@@ -111,6 +111,8 @@ FROM workspaces
 WHERE id = ?
 `
 
+// Copyright (C) 2026 Zekrost <tech@zekrost.com>
+// SPDX-License-Identifier: AGPL-3.0-only
 func (q *Queries) GetWorkspaceByID(ctx context.Context, id string) (Workspace, error) {
 	row := q.db.QueryRowContext(ctx, getWorkspaceByID, id)
 	var i Workspace

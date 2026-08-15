@@ -21,6 +21,8 @@ type CreateUserParams struct {
 	DisplayName  string `json:"display_name"`
 }
 
+// Copyright (C) 2026 Zekrost <tech@zekrost.com>
+// SPDX-License-Identifier: AGPL-3.0-only
 func (q *Queries) CreateUser(ctx context.Context, arg CreateUserParams) error {
 	_, err := q.db.ExecContext(ctx, createUser,
 		arg.ID,

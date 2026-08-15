@@ -120,6 +120,8 @@ type InsertChangeRow struct {
 	CreatedAt string `json:"created_at"`
 }
 
+// Copyright (C) 2026 Zekrost <tech@zekrost.com>
+// SPDX-License-Identifier: AGPL-3.0-only
 // Sync delta (seccion 9): cursor monotono por workspace + push con
 // deduplicacion por idempotency-key.
 func (q *Queries) InsertChange(ctx context.Context, arg InsertChangeParams) (InsertChangeRow, error) {
