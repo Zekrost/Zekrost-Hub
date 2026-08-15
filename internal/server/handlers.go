@@ -269,6 +269,53 @@ func (s *Server) handlePatchDoc(c *gin.Context) {
 // Las tareas son proyecciones del índice; PATCH reescribe la línea en
 // el Markdown fuente (round-trip, sección 6.2) y reindexa.
 
+
+// TaskDTO es la representación JSON pública de una tarea: el backend
+// serializa los campos nullable como string|null (nunca como el objeto
+// interno sql.NullString).
+type TaskDTO struct {
+	ID          string  `json:"id"`
+	WorkspaceID string  `json:"workspace_id"`
+	DocID       string  `json:"doc_id"`
+	LineNo      int64   `json:"line_no"`
+	Title       string  `json:"title"`
+	DueDate     *string `json:"due_date"`
+	Project     *string `json:"project"`
+	Priority    *string `json:"priority"`
+	Assignee    *string `json:"assignee"`
+	Done        int64   `json:"done"`
+	CreatedAt   string  `json:"created_at"`
+	UpdatedAt   string  `json:"updated_at"`
+}
+
+func toTaskDTO(t db.Task) TaskDTO {
+	return TaskDTO{
+		ID: t.ID, WorkspaceID: t.WorkspaceID, DocID: t.DocID,
+		LineNo: t.LineNo, Title: t.Title,
+		DueDate:   nsPtr(t.DueDate),
+		Project:   nsPtr(t.Project),
+		Priority:  nsPtr(t.Priority),
+		Assignee:  nsPtr(t.Assignee),
+		Done:      t.Done,
+		CreatedAt: t.CreatedAt, UpdatedAt: t.UpdatedAt,
+	}
+}
+
+func toTaskDTOs(rows []db.Task) []TaskDTO {
+	out := make([]TaskDTO, 0, len(rows))
+	for _, r := range rows {
+		out = append(out, toTaskDTO(r))
+	}
+	return out
+}
+
+func nsPtr(ns sql.NullString) *string {
+	if !ns.Valid {
+		return nil
+	}
+	return &ns.String
+}
+
 // handleListTasks devuelve una proyección del índice (sección 6.3).
 // Las vistas nunca almacenan estado: son consultas materializadas.
 //
@@ -319,7 +366,7 @@ func (s *Server) handleListTasks(c *gin.Context) {
 	if rows == nil {
 		rows = []db.Task{}
 	}
-	c.JSON(http.StatusOK, gin.H{"tasks": rows})
+	c.JSON(http.StatusOK, gin.H{"tasks": toTaskDTOs(rows)})
 }
 
 type patchTaskRequest struct {

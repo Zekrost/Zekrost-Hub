@@ -102,5 +102,5 @@ func (s *Server) handleQuickAdd(c *gin.Context) {
 		s.fail(c, http.StatusInternalServerError, "internal", "la tarea no apareció en el índice")
 		return
 	}
-	c.JSON(http.StatusCreated, created)
+	c.JSON(http.StatusCreated, toTaskDTO(*created))
 }

@@ -78,17 +78,19 @@ func TestQuickAddAppendsToInboxAndIndexes(t *testing.T) {
 		t.Fatalf("status = %d: %s", w.Code, w.Body.String())
 	}
 
-	var created db.Task
+	var created TaskDTO
 	if err := json.Unmarshal(w.Body.Bytes(), &created); err != nil {
 		t.Fatal(err)
 	}
 	if created.Title != "revisar facturas" {
 		t.Errorf("title = %q", created.Title)
 	}
-	if created.Project.String != "zekrost" || created.Priority.String != "alta" || created.Assignee.String != "deiver" {
+	if created.Project == nil || *created.Project != "zekrost" ||
+		created.Priority == nil || *created.Priority != "alta" ||
+		created.Assignee == nil || *created.Assignee != "deiver" {
 		t.Errorf("metadatos = %+v", created)
 	}
-	if created.DueDate.String == "" {
+	if created.DueDate == nil || *created.DueDate == "" {
 		t.Error("la fecha relativa #mañana debió resolverse")
 	}
 

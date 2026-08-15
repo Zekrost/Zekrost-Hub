@@ -167,3 +167,51 @@ func mustJSON(t *testing.T, v any) []byte {
 	}
 	return b
 }
+
+// TestTaskJSONShape: los campos nullable se serializan como string|null,
+// nunca como el objeto interno de sql.NullString.
+func TestTaskJSONShape(t *testing.T) {
+	srv, ownerID := testServer(t)
+	ctx := context.Background()
+	wsID := srv.mustFirstWorkspace(ctx, ownerID)
+
+	if err := srv.store.Write("ws", "t.md", []byte(
+		"- [ ] tarea con todo #2026-09-01 @proyecto !alta ~deiver\n- [ ] tarea sin metadatos\n",
+	)); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := srv.indexer.ReindexWorkspace(ctx, wsID, "ws"); err != nil {
+		t.Fatal(err)
+	}
+
+	token, _ := srv.authSvc.AccessToken(ownerID, nil)
+	req := httptest.NewRequest(http.MethodGet, "/api/v1/tasks", nil)
+	req.Header.Set("Authorization", "Bearer "+token)
+	w := httptest.NewRecorder()
+	srv.Router(nil).ServeHTTP(w, req)
+
+	var resp struct {
+		Tasks []map[string]any `json:"tasks"`
+	}
+	if err := json.Unmarshal(w.Body.Bytes(), &resp); err != nil {
+		t.Fatal(err)
+	}
+	if len(resp.Tasks) != 2 {
+		t.Fatalf("tasks = %d", len(resp.Tasks))
+	}
+	byTitle := map[string]map[string]any{}
+	for _, tk := range resp.Tasks {
+		byTitle[tk["title"].(string)] = tk
+	}
+	full := byTitle["tarea con todo"]
+	if v, ok := full["project"].(string); !ok || v != "proyecto" {
+		t.Errorf("project debe ser string, got %#v", full["project"])
+	}
+	if v, ok := full["due_date"].(string); !ok || v != "2026-09-01" {
+		t.Errorf("due_date debe ser string, got %#v", full["due_date"])
+	}
+	empty := byTitle["tarea sin metadatos"]
+	if empty["priority"] != nil || empty["assignee"] != nil {
+		t.Errorf("priority/assignee sin valor deben ser null, got %#v / %#v", empty["priority"], empty["assignee"])
+	}
+}
