@@ -26,7 +26,7 @@ type Querier interface {
 	GetDocByPath(ctx context.Context, arg GetDocByPathParams) (GetDocByPathRow, error)
 	GetDocVersions(ctx context.Context, arg GetDocVersionsParams) ([]GetDocVersionsRow, error)
 	GetMembership(ctx context.Context, arg GetMembershipParams) (Membership, error)
-	GetTaskByID(ctx context.Context, arg GetTaskByIDParams) (Task, error)
+	GetTaskByID(ctx context.Context, arg GetTaskByIDParams) (GetTaskByIDRow, error)
 	GetUserByEmail(ctx context.Context, email string) (User, error)
 	GetUserByID(ctx context.Context, id string) (User, error)
 	// Copyright (C) 2026 Zekrost <tech@zekrost.com>
@@ -40,7 +40,9 @@ type Querier interface {
 	InsertDocVersion(ctx context.Context, arg InsertDocVersionParams) error
 	IsCommandProcessed(ctx context.Context, arg IsCommandProcessedParams) (int64, error)
 	LastChangeSeq(ctx context.Context, workspaceID string) (int64, error)
+	ListBacklinksForGraph(ctx context.Context, workspaceID string) ([]Backlink, error)
 	ListDocsByWorkspace(ctx context.Context, workspaceID string) ([]Doc, error)
+	ListDocsForGraph(ctx context.Context, workspaceID string) ([]ListDocsForGraphRow, error)
 	ListTasksByDateRange(ctx context.Context, arg ListTasksByDateRangeParams) ([]Task, error)
 	ListTasksByProject(ctx context.Context, arg ListTasksByProjectParams) ([]Task, error)
 	// Copyright (C) 2026 Zekrost <tech@zekrost.com>

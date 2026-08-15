@@ -7,6 +7,7 @@ package db
 
 import (
 	"context"
+	"database/sql"
 )
 
 const getDocByID = `-- name: GetDocByID :one
@@ -85,9 +86,24 @@ type GetTaskByIDParams struct {
 	WorkspaceID string `json:"workspace_id"`
 }
 
-func (q *Queries) GetTaskByID(ctx context.Context, arg GetTaskByIDParams) (Task, error) {
+type GetTaskByIDRow struct {
+	ID          string         `json:"id"`
+	WorkspaceID string         `json:"workspace_id"`
+	DocID       string         `json:"doc_id"`
+	LineNo      int64          `json:"line_no"`
+	Title       string         `json:"title"`
+	DueDate     sql.NullString `json:"due_date"`
+	Project     sql.NullString `json:"project"`
+	Priority    sql.NullString `json:"priority"`
+	Assignee    sql.NullString `json:"assignee"`
+	Done        int64          `json:"done"`
+	CreatedAt   string         `json:"created_at"`
+	UpdatedAt   string         `json:"updated_at"`
+}
+
+func (q *Queries) GetTaskByID(ctx context.Context, arg GetTaskByIDParams) (GetTaskByIDRow, error) {
 	row := q.db.QueryRowContext(ctx, getTaskByID, arg.ID, arg.WorkspaceID)
-	var i Task
+	var i GetTaskByIDRow
 	err := row.Scan(
 		&i.ID,
 		&i.WorkspaceID,

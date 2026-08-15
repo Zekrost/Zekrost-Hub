@@ -284,6 +284,7 @@ type TaskDTO struct {
 	Priority    *string `json:"priority"`
 	Assignee    *string `json:"assignee"`
 	Done        int64   `json:"done"`
+	InProgress  int64   `json:"in_progress"`
 	CreatedAt   string  `json:"created_at"`
 	UpdatedAt   string  `json:"updated_at"`
 }
@@ -297,6 +298,7 @@ func toTaskDTO(t db.Task) TaskDTO {
 		Priority:  nsPtr(t.Priority),
 		Assignee:  nsPtr(t.Assignee),
 		Done:      t.Done,
+		InProgress: t.InProgress,
 		CreatedAt: t.CreatedAt, UpdatedAt: t.UpdatedAt,
 	}
 }

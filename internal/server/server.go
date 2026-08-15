@@ -79,6 +79,7 @@ func (s *Server) Router(webFS fs.FS) *gin.Engine {
 			authed.PATCH("/tasks/:id", s.handlePatchTask)
 
 			authed.GET("/search", s.handleSearch)
+			authed.GET("/graph", s.handleGraph)
 
 			authed.GET("/sync/changes", s.handleSyncChanges)
 			authed.POST("/sync/push", s.handleSyncPush)

@@ -19,11 +19,13 @@ export interface Task {
   id: string;
   title: string;
   done: number;
+  in_progress: number;
   due_date: string | null;
   project: string | null;
   priority: string | null;
   assignee: string | null;
   line_no: number;
+  doc_id: string;
 }
 
 export interface SearchResult {

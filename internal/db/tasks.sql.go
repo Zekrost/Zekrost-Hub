@@ -20,9 +20,7 @@ func (q *Queries) DeleteTasksForDoc(ctx context.Context, docID string) error {
 }
 
 const listTasksByDateRange = `-- name: ListTasksByDateRange :many
-SELECT id, workspace_id, doc_id, line_no, title, due_date, project,
-       priority, assignee, done, created_at, updated_at
-FROM tasks
+SELECT id, workspace_id, doc_id, line_no, title, due_date, project, priority, assignee, done, created_at, updated_at, in_progress FROM tasks
 WHERE workspace_id = ? AND due_date >= ? AND due_date <= ?
 ORDER BY due_date ASC, done ASC
 `
@@ -55,6 +53,7 @@ func (q *Queries) ListTasksByDateRange(ctx context.Context, arg ListTasksByDateR
 			&i.Done,
 			&i.CreatedAt,
 			&i.UpdatedAt,
+			&i.InProgress,
 		); err != nil {
 			return nil, err
 		}
@@ -70,9 +69,7 @@ func (q *Queries) ListTasksByDateRange(ctx context.Context, arg ListTasksByDateR
 }
 
 const listTasksByProject = `-- name: ListTasksByProject :many
-SELECT id, workspace_id, doc_id, line_no, title, due_date, project,
-       priority, assignee, done, created_at, updated_at
-FROM tasks
+SELECT id, workspace_id, doc_id, line_no, title, due_date, project, priority, assignee, done, created_at, updated_at, in_progress FROM tasks
 WHERE workspace_id = ? AND project = ?
 ORDER BY due_date ASC
 `
@@ -104,6 +101,7 @@ func (q *Queries) ListTasksByProject(ctx context.Context, arg ListTasksByProject
 			&i.Done,
 			&i.CreatedAt,
 			&i.UpdatedAt,
+			&i.InProgress,
 		); err != nil {
 			return nil, err
 		}
@@ -119,11 +117,9 @@ func (q *Queries) ListTasksByProject(ctx context.Context, arg ListTasksByProject
 }
 
 const listTasksByWorkspace = `-- name: ListTasksByWorkspace :many
-SELECT id, workspace_id, doc_id, line_no, title, due_date, project,
-       priority, assignee, done, created_at, updated_at
-FROM tasks
+SELECT id, workspace_id, doc_id, line_no, title, due_date, project, priority, assignee, done, created_at, updated_at, in_progress FROM tasks
 WHERE workspace_id = ? AND done = ?
-ORDER BY done ASC, due_date ASC
+ORDER BY done ASC, in_progress DESC, due_date ASC
 `
 
 type ListTasksByWorkspaceParams struct {
@@ -155,6 +151,7 @@ func (q *Queries) ListTasksByWorkspace(ctx context.Context, arg ListTasksByWorks
 			&i.Done,
 			&i.CreatedAt,
 			&i.UpdatedAt,
+			&i.InProgress,
 		); err != nil {
 			return nil, err
 		}
@@ -170,9 +167,7 @@ func (q *Queries) ListTasksByWorkspace(ctx context.Context, arg ListTasksByWorks
 }
 
 const listTasksDueToday = `-- name: ListTasksDueToday :many
-SELECT id, workspace_id, doc_id, line_no, title, due_date, project,
-       priority, assignee, done, created_at, updated_at
-FROM tasks
+SELECT id, workspace_id, doc_id, line_no, title, due_date, project, priority, assignee, done, created_at, updated_at, in_progress FROM tasks
 WHERE workspace_id = ? AND assignee = ?
   AND due_date <= date('now') AND done = 0
 ORDER BY due_date ASC
@@ -205,6 +200,7 @@ func (q *Queries) ListTasksDueToday(ctx context.Context, arg ListTasksDueTodayPa
 			&i.Done,
 			&i.CreatedAt,
 			&i.UpdatedAt,
+			&i.InProgress,
 		); err != nil {
 			return nil, err
 		}
@@ -220,9 +216,7 @@ func (q *Queries) ListTasksDueToday(ctx context.Context, arg ListTasksDueTodayPa
 }
 
 const listTasksMineToday = `-- name: ListTasksMineToday :many
-SELECT id, workspace_id, doc_id, line_no, title, due_date, project,
-       priority, assignee, done, created_at, updated_at
-FROM tasks
+SELECT id, workspace_id, doc_id, line_no, title, due_date, project, priority, assignee, done, created_at, updated_at, in_progress FROM tasks
 WHERE workspace_id = ? AND assignee = ? AND due_date <= date('now') AND done = 0
 ORDER BY due_date ASC
 `
@@ -254,6 +248,7 @@ func (q *Queries) ListTasksMineToday(ctx context.Context, arg ListTasksMineToday
 			&i.Done,
 			&i.CreatedAt,
 			&i.UpdatedAt,
+			&i.InProgress,
 		); err != nil {
 			return nil, err
 		}
@@ -269,7 +264,7 @@ func (q *Queries) ListTasksMineToday(ctx context.Context, arg ListTasksMineToday
 }
 
 const setTaskDone = `-- name: SetTaskDone :exec
-UPDATE tasks SET done = ?, updated_at = datetime('now')
+UPDATE tasks SET done = ?, in_progress = 0, updated_at = datetime('now')
 WHERE id = ? AND workspace_id = ?
 `
 
@@ -286,8 +281,8 @@ func (q *Queries) SetTaskDone(ctx context.Context, arg SetTaskDoneParams) error 
 
 const upsertTask = `-- name: UpsertTask :exec
 INSERT INTO tasks (id, workspace_id, doc_id, line_no, title, due_date,
-                   project, priority, assignee, done)
-VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                   project, priority, assignee, done, in_progress)
+VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
 ON CONFLICT (doc_id, line_no) DO UPDATE SET
     title = excluded.title,
     due_date = excluded.due_date,
@@ -295,6 +290,7 @@ ON CONFLICT (doc_id, line_no) DO UPDATE SET
     priority = excluded.priority,
     assignee = excluded.assignee,
     done = excluded.done,
+    in_progress = excluded.in_progress,
     updated_at = datetime('now')
 `
 
@@ -309,6 +305,7 @@ type UpsertTaskParams struct {
 	Priority    sql.NullString `json:"priority"`
 	Assignee    sql.NullString `json:"assignee"`
 	Done        int64          `json:"done"`
+	InProgress  int64          `json:"in_progress"`
 }
 
 func (q *Queries) UpsertTask(ctx context.Context, arg UpsertTaskParams) error {
@@ -323,6 +320,7 @@ func (q *Queries) UpsertTask(ctx context.Context, arg UpsertTaskParams) error {
 		arg.Priority,
 		arg.Assignee,
 		arg.Done,
+		arg.InProgress,
 	)
 	return err
 }

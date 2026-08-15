@@ -1,5 +1,3 @@
-// Copyright (C) 2026 Zekrost <tech@zekrost.com>
-// SPDX-License-Identifier: AGPL-3.0-only
 import { NixComponent, html, ref, type NixTemplate } from "@deijose/nix-js";
 import { EditorState } from "@codemirror/state";
 import { EditorView, keymap, drawSelection, lineNumbers, highlightActiveLine } from "@codemirror/view";
@@ -9,25 +7,25 @@ import { oneDark } from "@codemirror/theme-one-dark";
 
 // Editor como NixComponent (sección 7.2): ref() al contenedor, instancia
 // de CodeMirror en onMount() y cleanup automático al desmontar. Sin
-// wrappers: CodeMirror es DOM-first, exactamente el patrón de
-// integración del framework.
+// wrappers: CodeMirror es DOM-first.
 //
-// Nota de implementación: NO se sincroniza el contenido del editor a un
-// signal en cada keystroke — escribir un signal dentro del callback de
-// CodeMirror dispara el re-mount del subárbol embebido (loop detectado
-// en E2E). El contenido se lee bajo demanda con getDoc().
+// Nota: el contenido NO se sincroniza a una signal por keystroke (eso
+// disparaba un loop de re-mount del subárbol embebido, detectado en
+// E2E). Se expone onChange como callback plano para la preview.
 export class MarkdownEditor extends NixComponent {
   private container = ref<HTMLDivElement>();
   private view: EditorView | null = null;
   private initial: string;
+  private onChange?: (text: string) => void;
 
-  constructor(initial: string) {
+  constructor(initial: string, onChange?: (text: string) => void) {
     super();
     this.initial = initial;
+    this.onChange = onChange;
   }
 
   render(): NixTemplate {
-    return html`<div class="editor" ref=${this.container}></div>`;
+    return html`<div class="doc-editor" ref=${this.container}></div>`;
   }
 
   onMount(): (() => void) | void {
@@ -43,15 +41,17 @@ export class MarkdownEditor extends NixComponent {
         markdown(),
         oneDark,
         EditorView.lineWrapping,
+        EditorView.updateListener.of((u) => {
+          if (u.docChanged) {
+            this.onChange?.(u.state.doc.toString());
+          }
+        }),
       ],
     });
     this.view = new EditorView({ state, parent: this.container.el });
-
-    // cleanup automático al desmontar
     return () => this.view?.destroy();
   }
 
-  // setDoc reemplaza el contenido del editor sin tocar signals.
   setDoc(content: string): void {
     if (this.view) {
       this.view.dispatch({ changes: { from: 0, to: this.view.state.doc.length, insert: content } });

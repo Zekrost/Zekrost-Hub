@@ -1,42 +1,22 @@
-// Copyright (C) 2026 Zekrost <tech@zekrost.com>
-// SPDX-License-Identifier: AGPL-3.0-only
-import { createRouter, lazy } from "@deijose/nix-js";
+import { createRouter, type RouteRecord } from "@deijose/nix-js";
 import { HomePage } from "./modules/home/HomePage";
+import { DocsPage } from "./modules/docs/DocsPage";
+import { DocEditorPage } from "./modules/docs/DocEditorPage";
+import { TasksPage } from "./modules/tasks/TasksPage";
+import { SearchPage } from "./modules/search/SearchPage";
+import { GraphPage } from "./modules/graph/GraphPage";
+import { SettingsPage } from "./modules/settings/SettingsPage";
 
-// Rutas con meta.auth; carga perezosa por módulo (sección 7.1).
-export const router = createRouter(
-  [
-    { path: "/", component: () => HomePage(), meta: { auth: false } },
-    {
-      path: "/docs",
-      component: lazy(() => import("./modules/docs/DocsPage")),
-      meta: { auth: false },
-    },
-    {
-      path: "/docs/:id",
-      component: lazy(() => import("./modules/docs/DocEditorPage")),
-      meta: { auth: false },
-    },
-    {
-      path: "/tasks",
-      component: lazy(() => import("./modules/tasks/TasksPage")),
-      meta: { auth: false },
-    },
-    {
-      path: "/search",
-      component: lazy(() => import("./modules/search/SearchPage")),
-      meta: { auth: false },
-    },
-    {
-      path: "/graph",
-      component: lazy(() => import("./modules/graph/GraphPage")),
-      meta: { auth: false },
-    },
-    {
-      path: "/settings",
-      component: lazy(() => import("./modules/settings/SettingsPage")),
-      meta: { auth: false },
-    },
-  ],
-  { mode: "hash" }, // ADR-05: hash funciona dentro del WebView sin servidor
-);
+// Rutas con carga directa: el bundle es pequeño (<20 KB) y la navegación
+// es instantánea sin estados de carga intermedios.
+const routes: RouteRecord[] = [
+  { path: "/", component: () => HomePage(), meta: { auth: false } },
+  { path: "/docs", component: () => new DocsPage(), meta: { auth: false } },
+  { path: "/docs/:id", component: () => new DocEditorPage(), meta: { auth: false } },
+  { name: "tasks", path: "/tasks", component: () => new TasksPage(), meta: { auth: false } },
+  { path: "/search", component: () => SearchPage(), meta: { auth: false } },
+  { path: "/graph", component: () => new GraphPage(), meta: { auth: false } },
+  { path: "/settings", component: () => SettingsPage(), meta: { auth: false } },
+];
+
+export const router = createRouter(routes, { mode: "hash" });

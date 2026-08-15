@@ -84,10 +84,11 @@ Open [http://localhost:8080](http://localhost:8080).
 ## Screenshots
 
 <p align="center">
-  <img src="screenshots/editor.png" alt="Markdown editor" width="49%" />
+  <img src="screenshots/editor.png" alt="Editor with live preview" width="49%" />
   <img src="screenshots/table.png" alt="Tasks table" width="49%" />
   <br />
-  <img src="screenshots/docs.png" alt="Documents" width="49%" />
+  <img src="screenshots/calendar.png" alt="Calendar view" width="49%" />
+  <img src="screenshots/graph.png" alt="Knowledge graph" width="49%" />
 </p>
 
 ## Development

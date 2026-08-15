@@ -139,6 +139,7 @@ func (ix *Indexer) rebuildTasks(ctx context.Context, workspaceID, docID, rel str
 			Priority:    sql.NullString{String: t.Priority, Valid: t.Priority != ""},
 			Assignee:    sql.NullString{String: t.Assignee, Valid: t.Assignee != ""},
 			Done:        boolToInt64(t.Done),
+			InProgress:  boolToInt64(t.InProgress),
 		}); err != nil {
 			return err
 		}

@@ -10,6 +10,14 @@ export default defineConfig({
     target: "es2022",
     outDir: "dist",
     sourcemap: true,
+    rollupOptions: {
+      output: {
+        manualChunks(id: string) {
+          if (id.includes("codemirror") || id.includes("@codemirror")) return "codemirror";
+          if (id.includes("marked") || id.includes("flexsearch") || id.includes("dexie")) return "vendor";
+        },
+      },
+    },
   },
   server: {
     port: 5173,

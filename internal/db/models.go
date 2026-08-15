@@ -105,6 +105,7 @@ type Task struct {
 	Done        int64          `json:"done"`
 	CreatedAt   string         `json:"created_at"`
 	UpdatedAt   string         `json:"updated_at"`
+	InProgress  int64          `json:"in_progress"`
 }
 
 type User struct {

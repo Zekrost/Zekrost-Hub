@@ -1,52 +1,42 @@
-// Copyright (C) 2026 Zekrost <tech@zekrost.com>
-// SPDX-License-Identifier: AGPL-3.0-only
 import { html, type NixTemplate } from "@deijose/nix-js";
 import { render } from "@deijose/nix-js-testing";
 import { describe, expect, test } from "vitest";
 import { HomePage } from "../modules/home/HomePage";
-import { card } from "../modules/tasks/TasksPage";
+import { TasksPage } from "../modules/tasks/TasksPage";
 import { CommandPalette } from "./CommandPalette";
 
 describe("HomePage", () => {
-  test("muestra el acceso al producto", () => {
-    const { container } = render(HomePage() as NixTemplate);
-    expect(getByTextSafe(container, "Inicio")).toBeTruthy();
-  });
-
-  test("renderiza el formulario de acceso sin sesión", () => {
+  test("muestra la tarjeta de acceso sin sesión", () => {
     localStorage.removeItem("hub:token");
     const { container } = render(HomePage() as NixTemplate);
-    expect(container.querySelector("form.login")).toBeTruthy();
+    expect(container.querySelector(".login-card")).toBeTruthy();
+    expect(getByTextSafe(container, "Zekrost Hub")).toBeTruthy();
+  });
+
+  test("el formulario de acceso tiene email y contraseña", () => {
+    localStorage.removeItem("hub:token");
+    const { container } = render(HomePage() as NixTemplate);
+    expect(container.querySelector('input[type="email"]')).toBeTruthy();
+    expect(container.querySelector('input[type="password"]')).toBeTruthy();
   });
 });
 
 describe("kanban", () => {
-  test("renderiza la tarjeta de tarea con metadatos", () => {
-    const { container } = render(
-      card({
-        id: "1",
-        title: "Preparar propuesta",
-        done: 0,
-        due_date: "2026-08-20",
-        project: "zekrost",
-        priority: "alta",
-        assignee: "deiver",
-        line_no: 3,
-      }) as NixTemplate,
-    );
-    expect(getByTextSafe(container, "Preparar propuesta")).toBeTruthy();
-    expect(getByTextSafe(container, "@zekrost")).toBeTruthy();
-    expect(container.querySelector(".prio-alta")).toBeTruthy();
+  test("renderiza el tablero con las tres columnas y quick add", () => {
+    localStorage.removeItem("hub:token");
+    const { container } = render(new TasksPage() as unknown as NixTemplate);
+    expect(container.querySelectorAll(".kanban-col").length).toBe(3);
+    expect(container.querySelector(".quick-add input")).toBeTruthy();
   });
 });
 
 describe("command palette", () => {
-  test("se abre y expone el Quick Add Magic", () => {
+  test("se abre y expone la búsqueda", () => {
     const palette = new CommandPalette();
     palette.toggle();
     const { container } = render(palette.render() as NixTemplate);
-    expect(container.querySelector(".palette-input")).toBeTruthy();
-    expect(container.querySelector(".palette-nav")).toBeTruthy();
+    expect(container.querySelector(".palette-input input")).toBeTruthy();
+    expect(container.querySelector(".palette-footer")).toBeTruthy();
   });
 
   test("cerrada no renderiza el overlay", () => {
