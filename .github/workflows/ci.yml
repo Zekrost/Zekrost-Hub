@@ -33,11 +33,13 @@ jobs:
           sudo mv sqlc /usr/local/bin/
           sqlc version
 
-      - name: Frontend deps + typecheck
+      - name: Frontend deps
         working-directory: web
-        run: |
-          npm ci
-          npx tsc --noEmit
+        run: npm ci
+
+      - name: Typecheck
+        working-directory: web
+        run: npx tsc --noEmit
 
       - name: Frontend tests + build
         working-directory: web
