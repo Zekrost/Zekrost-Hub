@@ -24,7 +24,7 @@
   },
   "bundle": {
     "active": true,
-    "targets": ["deb", "appimage", "nsis", "msi", "dmg"],
+    "targets": "all",
     "category": "Productivity",
     "shortDescription": "Docs y tareas en un solo lugar, 100% local.",
     "longDescription": "Zekrost Hub: workspace self-hosted de gestión documental y de proyectos. Los archivos son la verdad; todo lo demás son lentes sobre los mismos datos.",

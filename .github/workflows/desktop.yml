@@ -63,7 +63,7 @@ jobs:
           projectPath: desktop
           tagName: v__VERSION__
           releaseName: "Zekrost Hub v__VERSION__"
-          releaseDraft: true
+          releaseDraft: false
           prerelease: false
 
       - name: Build (manual)
