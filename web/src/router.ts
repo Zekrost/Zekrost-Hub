@@ -16,7 +16,7 @@ const routes: RouteRecord[] = [
   { name: "tasks", path: "/tasks", component: () => new TasksPage(), meta: { auth: true } },
   { path: "/search", component: () => SearchPage(), meta: { auth: true } },
   { path: "/graph", component: () => new GraphPage(), meta: { auth: true } },
-  { path: "/settings", component: () => SettingsPage(), meta: { auth: true } },
+  { path: "/settings", component: () => new SettingsPage(), meta: { auth: true } },
 ];
 
 export const router = createRouter(routes, { mode: "hash" });
