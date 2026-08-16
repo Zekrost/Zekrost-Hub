@@ -2,6 +2,7 @@ import { NixComponent, html, type NixTemplate } from "@deijose/nix-js";
 import { router } from "../../router";
 import { currentRole } from "../../api/role";
 import { localDocs } from "../../data/store";
+import { activeWs } from "../../data/workspace";
 import { createDocLocal } from "../../data/mutations";
 import { showPrompt, showToast } from "../../ui/kit";
 
@@ -21,14 +22,14 @@ export class DocsPage extends NixComponent {
             </thead>
             <tbody>
               ${() =>
-                localDocs.value.map((d) => html`
+                localDocs.value.filter((d) => d.workspaceId === activeWs.value).map((d) => html`
                   <tr style="cursor:pointer" @click=${() => router.navigate("/docs/" + d.id)}>
                     <td><strong>${d.title}</strong></td>
                     <td><span class="faint">${d.path}</span></td>
                     <td><span class="faint">${d.updatedAt.slice(0, 10)}</span></td>
                   </tr>`)}
               ${() =>
-                localDocs.value.length === 0
+                localDocs.value.filter((d) => d.workspaceId === activeWs.value).length === 0
                   ? html`<tr><td colspan="3" class="empty-state">Sin documentos. Crea uno nuevo.</td></tr>`
                   : ""}
             </tbody>

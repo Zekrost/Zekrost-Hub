@@ -3,6 +3,7 @@
 import { applyChanges, getCursor, mirrorDoc, type Change } from "./local";
 import { enqueue, clearQueue } from "./queue";
 import { apiFetch, getToken } from "../api/client";
+import { activeWs } from "../data/workspace";
 import { showToast } from "../ui/kit";
 
 // Cliente del sync delta (sección 9): push de la cola offline + pull
@@ -21,19 +22,23 @@ export async function pushPending(): Promise<void> {
   if (inFlight) return;
   inFlight = true;
   try {
-    await pull(); // primero converger: menos conflictos LWW
-    if (!getToken()) return;
+    const ws = activeWs.value;
+    if (!ws || !getToken()) return;
+    await pull(ws); // primero converger: menos conflictos LWW
 
     // comandos pendientes de la cola Dexie
     const commands = await queueCommands();
     if (commands.length === 0) return;
 
     try {
-      const delta = await apiFetch<{ cursor: number; changes: Change[] }>("/sync/push", {
-        method: "POST",
-        body: JSON.stringify({ commands }),
-      });
-      await applyChanges(delta.changes ?? [], delta.cursor ?? (await getCursor()));
+      const delta = await apiFetch<{ cursor: number; changes: Change[] }>(
+        "/sync/push" + (ws ? "?workspace=" + encodeURIComponent(ws) : ""),
+        {
+          method: "POST",
+          body: JSON.stringify({ commands }),
+        },
+      );
+      await applyChanges(delta.changes ?? [], delta.cursor ?? (await getCursor(ws ?? undefined)), ws ?? "");
       await clearQueue();
     } catch (e) {
       // 403 = sin permiso tras refresh válido: se descarta la cola (el
@@ -50,15 +55,15 @@ export async function pushPending(): Promise<void> {
   }
 }
 
-// pull trae el delta desde el cursor local y lo aplica al mirror.
-export async function pull(): Promise<void> {
+// pull trae el delta del workspace desde su cursor local y lo aplica.
+export async function pull(workspaceId: string): Promise<void> {
   if (!getToken()) return;
-  const since = await getCursor();
+  const since = await getCursor(workspaceId);
   const delta = await apiFetch<{ cursor: number; changes: Change[] }>(
-    `/sync/changes?since=${since}`,
+    `/sync/changes?workspace=${encodeURIComponent(workspaceId)}&since=${since}`,
   ).catch(() => null);
   if (delta) {
-    await applyChanges(delta.changes ?? [], delta.cursor ?? since);
+    await applyChanges(delta.changes ?? [], delta.cursor ?? since, workspaceId);
   }
 }
 
@@ -68,7 +73,7 @@ export async function queueDocUpdate(doc: {
   id: string; path: string; title: string; content: string; updatedAt: string;
 }): Promise<void> {
   const key = crypto.randomUUID();
-  await mirrorDoc({ ...doc, contentHash: await sha256(doc.content) });
+  await mirrorDoc({ ...doc, contentHash: await sha256(doc.content), workspaceId: activeWs.value ?? "" });
   await enqueue({
     key: "doc.upsert",
     payload: { idempotency_key: key, op: "doc.upsert", doc_id: doc.id, path: doc.path, content: doc.content, updated_at: doc.updatedAt },
@@ -96,6 +101,7 @@ export function initSyncAuto(): void {
     void pushPending();
   });
   window.addEventListener("focus", () => {
-    void pull();
+    const ws = activeWs.value;
+    if (ws) void pull(ws);
   });
 }

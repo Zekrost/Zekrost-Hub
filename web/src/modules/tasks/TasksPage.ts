@@ -1,14 +1,16 @@
 import { NixComponent, html, signal, type NixTemplate } from "@deijose/nix-js";
 import { localTasks } from "../../data/store";
+import { activeWs } from "../../data/workspace";
+import { tasksView } from "../../data/tasks-view";
 import { toggleTaskLocal, quickAddLocal } from "../../data/mutations";
 import { currentRole } from "../../api/role";
 import { formatDate, isOverdue, showToast } from "../../ui/kit";
 import type { LocalTask } from "../../sync/local";
 
 // Proyecciones del índice local (kanban/tabla/calendario) — 100% offline.
-const vista = signal<"kanban" | "tabla" | "calendario">(
-  (new URLSearchParams(window.location.hash.split("?")[1] ?? "").get("view") as "tabla" | "calendario") ?? "kanban",
-);
+// La vista es compartida con el header (data/tasks-view): los botones
+// del topbar la setean al navegar (antes se leía una sola vez al cargar
+// el módulo y el calendario abría el kanban, etc.).
 const tableParams = signal<[string, string]>(["", "0"]);
 const calRange = signal<[string, string]>(monthRange());
 
@@ -143,9 +145,9 @@ function kanbanView(): NixTemplate {
       <span class="quick-add-hint">Enter para crear · #fecha @proyecto !prioridad</span>
     </div>
     <div class="kanban-board">
-      ${() => kanbanColumn("Por hacer", "todo", () => localTasks.value.filter((t) => !t.done && !t.inProgress))}
-      ${() => kanbanColumn("En progreso", "doing", () => localTasks.value.filter((t) => !t.done && t.inProgress))}
-      ${() => kanbanColumn("Hecho", "done", () => localTasks.value.filter((t) => t.done))}
+      ${() => kanbanColumn("Por hacer", "todo", () => localTasks.value.filter((t) => t.workspaceId === activeWs.value && !t.done && !t.inProgress))}
+      ${() => kanbanColumn("En progreso", "doing", () => localTasks.value.filter((t) => t.workspaceId === activeWs.value && !t.done && t.inProgress))}
+      ${() => kanbanColumn("Hecho", "done", () => localTasks.value.filter((t) => t.workspaceId === activeWs.value && t.done))}
     </div>
     <p class="muted" style="padding: 0 20px 14px">
       Arrastra una tarjeta para cambiar su estado · El cambio reescribe el Markdown fuente (round-trip)
@@ -158,6 +160,7 @@ function kanbanView(): NixTemplate {
 function tablaView(): NixTemplate {
   const rows = localTasks.value.filter((t) => {
     const [proyecto, done] = tableParams.value;
+    if (t.workspaceId !== activeWs.value) return false;
     if (proyecto && t.project !== proyecto) return false;
     if (done === "1" ? !t.done : t.done) return false;
     return true;
@@ -170,7 +173,7 @@ function tablaView(): NixTemplate {
         }}>
         <option value="">Todos los proyectos</option>
         ${() =>
-          [...new Set(localTasks.value.map((t) => t.project).filter((p): p is string => !!p))].sort().map((p) => html`<option value=${p}>@${p}</option>`)}
+          [...new Set(localTasks.value.filter((t) => t.workspaceId === activeWs.value).map((t) => t.project).filter((p): p is string => !!p))].sort().map((p) => html`<option value=${p}>@${p}</option>`)}
       </select>
       <select value=${() => tableParams.value[1]}
         @change=${(ev: Event) => {
@@ -190,6 +193,7 @@ function tablaView(): NixTemplate {
             localTasks.value
               .filter((t) => {
                 const [proyecto, done] = tableParams.value;
+                if (t.workspaceId !== activeWs.value) return false;
                 if (proyecto && t.project !== proyecto) return false;
                 if (done === "1" ? !t.done : t.done) return false;
                 return true;
@@ -259,7 +263,7 @@ function calendarioView(): NixTemplate {
             <div class="day-number">${Number(cell.date.slice(8, 10))}</div>
             ${() =>
               localTasks.value
-                .filter((t) => t.dueDate === cell.date && !cell.other)
+                .filter((t) => t.workspaceId === activeWs.value && t.dueDate === cell.date && !cell.other)
                 .map((t) => html`<button class=${"cal-task" + " " + (t.priority ?? "") + (t.done ? " done" : "")}
                   title=${t.title} @click=${() => openDoc(t.docId)}>${t.title}</button>`)}
           </div>`)}
@@ -278,15 +282,15 @@ export class TasksPage extends NixComponent {
           <h2>Tareas</h2>
           <div class="tabs">
             ${(["kanban", "tabla", "calendario"] as const).map(
-              (v) => html`<button class=${"tab" + (vista.value === v ? " active" : "")}
-                @click=${() => (vista.value = v)}>${v}</button>`,
+              (v) => html`<button class=${"tab" + (tasksView.value === v ? " active" : "")}
+                @click=${() => (tasksView.value = v)}>${v}</button>`,
             )}
           </div>
         </div>
         ${() =>
-          vista.value === "kanban"
+          tasksView.value === "kanban"
             ? kanbanView()
-            : vista.value === "tabla"
+            : tasksView.value === "tabla"
               ? tablaView()
               : calendarioView()}
       </div>

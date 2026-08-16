@@ -4,6 +4,8 @@ import { router } from "../router";
 import { workspacesApi } from "../api/client";
 import { queueLength } from "../sync/queue";
 import { localDocs, bootstrapLocal } from "../data/store";
+import { activeWs } from "../data/workspace";
+import { setTasksView } from "../data/tasks-view";
 import { HomePage } from "../modules/home/HomePage";
 import { clearToken, getToken } from "../api/client";
 import { escapeHtml } from "../ui/kit";
@@ -18,7 +20,6 @@ export class App extends NixComponent {
   private pending = signal(0);
   private authed = signal(getToken() !== null);
   private workspaces = signal<Array<{ id: string; slug: string; name: string; role: string }>>([]);
-  private activeWs = signal<string | null>(null);
   private searchQ = signal("");
   private sidebarOpen = signal(false);
 
@@ -71,13 +72,21 @@ export class App extends NixComponent {
     try {
       const { workspaces } = await workspacesApi.list();
       this.workspaces.value = workspaces;
-      if (workspaces.length && !this.activeWs.value) {
-        this.activeWs.value = workspaces[0].id;
+      if (workspaces.length && !activeWs.value) {
+        activeWs.value = workspaces[0].id;
       }
     } catch {
       /* sin sesión */
     }
-    await bootstrapLocal();
+    const ws = activeWs.value;
+    if (ws) await bootstrapLocal(ws);
+  }
+
+  private async switchWorkspace(id: string): Promise<void> {
+    if (activeWs.value === id) return;
+    activeWs.value = id;
+    const ws = activeWs.value;
+    if (ws) await bootstrapLocal(ws);
   }
 
   render(): NixTemplate {
@@ -104,7 +113,8 @@ export class App extends NixComponent {
                     <div class="section-label">Workspaces</div>
                     <div class="ws-list">
                       ${this.workspaces.value.map((ws, i) => html`
-                        <button class=${"ws-item" + (this.activeWs.value === ws.id ? " active" : "")}>
+                        <button class=${"ws-item" + (activeWs.value === ws.id ? " active" : "")}
+                          @click=${() => void this.switchWorkspace(ws.id)}>
                           <span class="ws-dot" style=${"background:" + WS_COLORS[i % WS_COLORS.length]}></span>
                           <span class="ws-name">${ws.name}</span>
                           <span class="role-badge">${ws.role}</span>
@@ -116,6 +126,7 @@ export class App extends NixComponent {
                     <div class="docs-list">
                       ${() =>
                         localDocs.value
+                          .filter((d) => d.workspaceId === activeWs.value)
                           .filter(
                             (d) =>
                               !this.searchQ.value ||
@@ -157,7 +168,7 @@ export class App extends NixComponent {
             </button>
             <div class="doc-breadcrumb">
               <span class="ws-tag">
-                ${() => this.workspaces.value.find((w) => w.id === this.activeWs.value)?.name ?? "Zekrost Hub"}
+                ${() => this.workspaces.value.find((w) => w.id === activeWs.value)?.name ?? "Zekrost Hub"}
               </span>
               <span class="sep">/</span>
               <span class="doc-name">
@@ -169,9 +180,9 @@ export class App extends NixComponent {
               ${(() => {
                 const views: Array<{ label: string; isActive: (cur: string) => boolean; go: () => void }> = [
                   { label: "Documentos", isActive: (c) => c.startsWith("/docs"), go: () => router.navigate("/docs") },
-                  { label: "Kanban", isActive: (c) => c.startsWith("/tasks") && !c.includes("view="), go: () => router.navigate("/tasks") },
-                  { label: "Tabla", isActive: (c) => c.includes("view=tabla"), go: () => router.navigate({ name: "tasks", query: { view: "tabla" } }) },
-                  { label: "Calendario", isActive: (c) => c.includes("view=calendario"), go: () => router.navigate({ name: "tasks", query: { view: "calendario" } }) },
+                  { label: "Kanban", isActive: (c) => c.startsWith("/tasks") && !c.includes("view="), go: () => { setTasksView("kanban"); router.navigate("/tasks"); } },
+                  { label: "Tabla", isActive: (c) => c.includes("view=tabla"), go: () => { setTasksView("tabla"); router.navigate({ name: "tasks", query: { view: "tabla" } }); } },
+                  { label: "Calendario", isActive: (c) => c.includes("view=calendario"), go: () => { setTasksView("calendario"); router.navigate({ name: "tasks", query: { view: "calendario" } }); } },
                   { label: "Grafo", isActive: (c) => c.startsWith("/graph"), go: () => router.navigate("/graph") },
                   { label: "Ajustes", isActive: (c) => c.startsWith("/settings"), go: () => router.navigate("/settings") },
                 ];

@@ -1,6 +1,7 @@
 import { NixComponent, html, signal, type NixTemplate } from "@deijose/nix-js";
 import { router } from "../router";
 import { localDocs, localTasks } from "../data/store";
+import { activeWs } from "../data/workspace";
 import { quickAddLocal } from "../data/mutations";
 import { currentRole } from "../api/role";
 import { fuzzyMatch, showPrompt, showToast } from "../ui/kit";
@@ -62,10 +63,10 @@ export class CommandPalette extends NixComponent {
       { kind: "action", label: "Ir al Grafo", sub: "Relaciones entre documentos", action: () => router.navigate("/graph") },
     ];
 
-    for (const d of localDocs.value) {
+    for (const d of localDocs.value.filter((x) => x.workspaceId === activeWs.value)) {
       items.push({ kind: "doc", label: d.title, sub: d.path, action: () => router.navigate("/docs/" + d.id) });
     }
-    for (const t of localTasks.value.slice(0, 40)) {
+    for (const t of localTasks.value.filter((x) => x.workspaceId === activeWs.value).slice(0, 40)) {
       items.push({
         kind: "task",
         label: t.title,

@@ -2,6 +2,7 @@ import { localDB, mirrorDoc, reindexDoc, type LocalDoc, type LocalTask } from ".
 import { enqueue } from "../sync/queue";
 import { pushPending } from "../sync/client";
 import { refreshLocal } from "./store";
+import { activeWs } from "./workspace";
 import { applyTaskState, parse } from "../tasks/parser";
 
 export function nowUTC(): string {
@@ -18,7 +19,7 @@ export async function sha256(content: string): Promise<string> {
 export async function saveDocLocal(doc: { id: string; path: string; title: string; content: string }): Promise<void> {
   const updatedAt = nowUTC();
   const contentHash = await sha256(doc.content);
-  await mirrorDoc({ ...doc, contentHash, updatedAt });
+  await mirrorDoc({ ...doc, contentHash, updatedAt, workspaceId: activeWs.value ?? "" });
   await reindexDoc(doc.id);
   await refreshLocal();
   const key = crypto.randomUUID();
@@ -51,6 +52,7 @@ export async function createDocLocal(title: string, path: string): Promise<Local
     contentHash: await sha256(content),
     updatedAt: nowUTC(),
     deleted: 0,
+    workspaceId: activeWs.value ?? "",
   };
   await saveDocLocal({ id, path, title, content });
   return doc;
@@ -98,6 +100,7 @@ export async function quickAddLocal(text: string): Promise<LocalTask | null> {
     id: `${id}::${created.line}`,
     docId: id!,
     docTitle: "Inbox",
+    workspaceId: activeWs.value ?? "",
     lineNo: created.line,
     title: created.title,
     dueDate: created.dueDate,

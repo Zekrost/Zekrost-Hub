@@ -13,12 +13,14 @@ export interface LocalDoc {
   contentHash: string;
   updatedAt: string;
   deleted: number;
+  workspaceId: string;
 }
 
 export interface LocalTask {
   id: string; // docId::lineNo
   docId: string;
   docTitle: string;
+  workspaceId: string;
   lineNo: number;
   title: string;
   dueDate: string | null;
@@ -64,18 +66,26 @@ class HubLocalDB extends Dexie {
       backlinks: "srcDocId, dstTitle",
       meta: "key",
     });
+    this.version(4).stores({
+      docs: "id, path, workspaceId, updatedAt, deleted",
+      tasks: "id, docId, workspaceId, project, dueDate, done",
+      backlinks: "srcDocId, dstTitle",
+      meta: "key",
+    });
   }
 }
 
 export const localDB = new HubLocalDB();
 
-export async function getCursor(): Promise<number> {
-  const row = await localDB.meta.get("cursor");
+export async function getCursor(workspaceId?: string): Promise<number> {
+  const key = workspaceId ? "cursor:" + workspaceId : "cursor";
+  const row = await localDB.meta.get(key);
   return row ? Number(row.value) : 0;
 }
 
-export async function setCursor(cursor: number): Promise<void> {
-  await localDB.meta.put({ key: "cursor", value: String(cursor) });
+export async function setCursor(cursor: number, workspaceId?: string): Promise<void> {
+  const key = workspaceId ? "cursor:" + workspaceId : "cursor";
+  await localDB.meta.put({ key, value: String(cursor) });
 }
 
 export interface Change {
@@ -85,7 +95,7 @@ export interface Change {
 }
 
 // applyChanges aplica un delta del servidor al mirror local.
-export async function applyChanges(changes: Change[], cursor: number): Promise<void> {
+export async function applyChanges(changes: Change[], cursor: number, workspaceId: string): Promise<void> {
   for (const ch of changes) {
     if (ch.op === "delete") {
       const id = ch.doc?.id;
@@ -111,6 +121,7 @@ export async function applyChanges(changes: Change[], cursor: number): Promise<v
         contentHash: ch.doc.content_hash,
         updatedAt: ch.doc.updated_at,
         deleted: 0,
+        workspaceId,
       });
       continue;
     }
@@ -122,9 +133,10 @@ export async function applyChanges(changes: Change[], cursor: number): Promise<v
       contentHash: ch.doc.content_hash,
       updatedAt: ch.doc.updated_at,
       deleted: 0,
+      workspaceId,
     });
   }
-  await setCursor(cursor);
+  await setCursor(cursor, workspaceId);
 }
 
 export async function mirrorDoc(doc: {
@@ -134,6 +146,7 @@ export async function mirrorDoc(doc: {
   content: string;
   contentHash: string;
   updatedAt: string;
+  workspaceId: string;
 }): Promise<void> {
   await localDB.docs.put({ ...doc, deleted: 0 });
 }
@@ -156,6 +169,7 @@ export async function reindexDoc(docId: string): Promise<number> {
       id: `${docId}::${t.line}`,
       docId,
       docTitle: doc.title,
+      workspaceId: doc.workspaceId,
       lineNo: t.line,
       title: t.title,
       dueDate: t.dueDate,
@@ -180,12 +194,14 @@ export async function reindexAll(): Promise<number> {
   return n;
 }
 
-export async function getLocalDocs(): Promise<LocalDoc[]> {
-  return localDB.docs.where("deleted").equals(0).toArray();
+export async function getLocalDocs(workspaceId?: string): Promise<LocalDoc[]> {
+  if (!workspaceId) return localDB.docs.where("deleted").equals(0).toArray();
+  return localDB.docs.where("workspaceId").equals(workspaceId).filter((d) => d.deleted === 0).toArray();
 }
 
-export async function getLocalTasks(): Promise<LocalTask[]> {
-  return localDB.tasks.toArray();
+export async function getLocalTasks(workspaceId?: string): Promise<LocalTask[]> {
+  if (!workspaceId) return localDB.tasks.toArray();
+  return localDB.tasks.where("workspaceId").equals(workspaceId).toArray();
 }
 
 export async function getLocalBacklinks(): Promise<LocalBacklink[]> {

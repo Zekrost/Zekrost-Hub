@@ -1157,3 +1157,23 @@ kbd {
   .cmd-btn kbd { display: none; }
   .sync-indicator .text { display: none; }
 }
+
+/* Toggle de contraseña */
+.password-field { position: relative; }
+
+.password-field input { padding-right: 40px; }
+
+.eye-toggle {
+  position: absolute;
+  right: 8px;
+  top: 50%;
+  transform: translateY(-50%);
+  color: var(--text-faint);
+  display: grid;
+  place-items: center;
+  padding: 4px;
+  border-radius: 4px;
+  transition: color var(--fast);
+}
+
+.eye-toggle:hover { color: var(--text); }

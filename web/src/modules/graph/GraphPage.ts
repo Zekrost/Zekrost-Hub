@@ -1,6 +1,7 @@
 import { NixComponent, html, type NixTemplate } from "@deijose/nix-js";
 import { router } from "../../router";
-import { localDocs, localTasks } from "../../data/store";
+import { localDocs } from "../../data/store";
+import { activeWs } from "../../data/workspace";
 import { extractBacklinks } from "../../sync/local";
 
 interface GNode {
@@ -68,7 +69,7 @@ export class GraphPage extends NixComponent {
   }
 
   private build(): void {
-    const docs = localDocs.value;
+    const docs = localDocs.value.filter((d) => d.workspaceId === activeWs.value);
     if (!docs.length) return;
     this.measure();
     const { width, height } = this.rect;
