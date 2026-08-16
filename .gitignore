@@ -31,4 +31,4 @@ internal/web/dist/
 # Coverage
 coverage/
 coverage.out
-data/
+/data/
