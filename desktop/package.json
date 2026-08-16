@@ -1,7 +1,7 @@
 {
   "name": "zekrost-hub-desktop",
   "private": true,
-  "version": "0.1.0",
+  "version": "0.1.1",
   "description": "Zekrost Hub — app de escritorio (Tauri 2, sidecar Go embebido)",
   "scripts": {
     "dev": "tauri dev",

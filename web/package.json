@@ -1,7 +1,7 @@
 {
   "name": "zekrost-hub-web",
   "private": true,
-  "version": "0.1.0",
+  "version": "0.1.1",
   "type": "module",
   "description": "Frontend Nix.js de Zekrost Hub — un solo codebase para web/PWA y apps nativas (Capacitor)",
   "scripts": {
