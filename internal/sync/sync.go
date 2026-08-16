@@ -178,8 +178,20 @@ func (e *Engine) applyDocUpsert(ctx context.Context, wsID, wsSlug string, cmd Pu
 	if err := e.store.Write(wsSlug, cmd.Path, []byte(cmd.Content)); err != nil {
 		return err
 	}
-	_, err = e.indexer.ReindexWorkspace(ctx, wsID, wsSlug)
-	return err
+	if _, err := e.indexer.ReindexWorkspace(ctx, wsID, wsSlug); err != nil {
+		return err
+	}
+	// LWW coherente: el reloj del cliente manda. Sin esto, una cola de
+	// comandos offline aplicada al reconectar haría que el último cambio
+	// se rechazara (el servidor usaba su propio tiempo de aplicación).
+	if cmd.UpdatedAt != "" {
+		if err := e.queries.SetDocUpdatedAt(ctx, db.SetDocUpdatedAtParams{
+			UpdatedAt: cmd.UpdatedAt, WorkspaceID: wsID, Path: cmd.Path,
+		}); err != nil {
+			return err
+		}
+	}
+	return nil
 }
 
 // lastSeq devuelve el cursor actual del workspace (0 si no hay cambios).

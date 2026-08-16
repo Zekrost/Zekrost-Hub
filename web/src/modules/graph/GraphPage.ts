@@ -1,6 +1,7 @@
 import { NixComponent, html, type NixTemplate } from "@deijose/nix-js";
-import { getToken } from "../../api/client";
 import { router } from "../../router";
+import { localDocs, localTasks } from "../../data/store";
+import { extractBacklinks } from "../../sync/local";
 
 interface GNode {
   id: string;
@@ -17,8 +18,8 @@ interface GEdge {
   to: string;
 }
 
-// Grafo de relaciones entre documentos: force simulation en canvas
-// con los backlinks reales del índice.
+// Grafo local-first: nodos = docs del mirror, aristas = backlinks
+// [[wikilinks]] extraídos localmente. 100% offline.
 export class GraphPage extends NixComponent {
   private canvasRef: HTMLCanvasElement | null = null;
   private nodes: GNode[] = [];
@@ -44,7 +45,7 @@ export class GraphPage extends NixComponent {
   }
 
   onMount(): (() => void) | void {
-    void this.load();
+    this.build();
     window.addEventListener("resize", this.onResize);
     return () => {
       window.removeEventListener("resize", this.onResize);
@@ -66,35 +67,46 @@ export class GraphPage extends NixComponent {
     c.height = Math.max(1, c.clientHeight * dpr);
   }
 
-  private async load(): Promise<void> {
-    if (!getToken()) return;
-    try {
-      const res = await fetch("/api/v1/graph", {
-        headers: { Authorization: "Bearer " + localStorage.getItem("hub:token") },
-      });
-      const data = await res.json();
-      const docs: Array<{ id: string; title: string }> = data.nodes ?? [];
-      this.edges = data.edges ?? [];
-      this.measure();
-      const { width, height } = this.rect;
-      this.nodes = docs.map((d, i) => {
-        const angle = (i / Math.max(1, docs.length)) * Math.PI * 2;
-        const r = Math.min(width, height) * 0.28;
-        return {
-          id: d.id,
-          title: d.title,
-          x: width / 2 + Math.cos(angle) * r,
-          y: height / 2 + Math.sin(angle) * r,
-          vx: 0,
-          vy: 0,
-          dragging: false,
-        };
-      });
-      this.bindCanvas();
-      this.animate();
-    } catch {
-      /* sin conexión o sin datos */
+  private build(): void {
+    const docs = localDocs.value;
+    if (!docs.length) return;
+    this.measure();
+    const { width, height } = this.rect;
+    const existing = new Map(this.nodes.map((n) => [n.id, n]));
+    this.nodes = docs.map((d, i) => {
+      const prev = existing.get(d.id);
+      if (prev) {
+        prev.title = d.title;
+        return prev;
+      }
+      const angle = (i / Math.max(1, docs.length)) * Math.PI * 2;
+      const r = Math.min(width, height) * 0.28;
+      return {
+        id: d.id,
+        title: d.title,
+        x: width / 2 + Math.cos(angle) * r,
+        y: height / 2 + Math.sin(angle) * r,
+        vx: 0,
+        vy: 0,
+        dragging: false,
+      };
+    });
+
+    const byTitle = new Map(docs.map((d) => [d.title.toLowerCase(), d.id]));
+    const seen = new Set<string>();
+    this.edges = [];
+    for (const d of docs) {
+      for (const link of extractBacklinks(d.content)) {
+        const target = byTitle.get(link.dstTitle.toLowerCase());
+        if (!target || target === d.id) continue;
+        const key = d.id + "::" + target;
+        if (seen.has(key)) continue;
+        seen.add(key);
+        this.edges.push({ from: d.id, to: target });
+      }
     }
+    this.bindCanvas();
+    this.animate();
   }
 
   private bindCanvas(): void {
@@ -194,7 +206,6 @@ export class GraphPage extends NixComponent {
       ctx.setTransform(1, 0, 0, 1, 0, 0);
       ctx.scale(dpr, dpr);
       ctx.clearRect(0, 0, width, height);
-
       for (const e of edges) {
         const a = nodes.find((n) => n.id === e.from);
         const b = nodes.find((n) => n.id === e.to);
@@ -206,7 +217,6 @@ export class GraphPage extends NixComponent {
         ctx.lineTo(b.x, b.y);
         ctx.stroke();
       }
-
       for (const n of nodes) {
         const grad = ctx.createRadialGradient(n.x, n.y, 0, n.x, n.y, 32);
         grad.addColorStop(0, "rgba(99, 102, 241, 0.18)");
@@ -215,7 +225,6 @@ export class GraphPage extends NixComponent {
         ctx.beginPath();
         ctx.arc(n.x, n.y, 32, 0, Math.PI * 2);
         ctx.fill();
-
         ctx.fillStyle = "#161922";
         ctx.strokeStyle = "#6366f1";
         ctx.lineWidth = 2;
@@ -223,7 +232,6 @@ export class GraphPage extends NixComponent {
         ctx.arc(n.x, n.y, 8, 0, Math.PI * 2);
         ctx.fill();
         ctx.stroke();
-
         ctx.fillStyle = "#e6e8ee";
         ctx.font = "500 12px Inter, sans-serif";
         ctx.textAlign = "center";
@@ -239,4 +247,3 @@ export class GraphPage extends NixComponent {
     loop();
   }
 }
-export default GraphPage;

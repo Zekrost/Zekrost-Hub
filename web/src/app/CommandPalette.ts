@@ -1,31 +1,21 @@
 import { NixComponent, html, signal, type NixTemplate } from "@deijose/nix-js";
-import { invalidateQueries } from "@deijose/nix-query";
 import { router } from "../router";
-import { docsApi, getToken, tasksApi, workspacesApi } from "../api/client";
+import { localDocs, localTasks } from "../data/store";
+import { quickAddLocal } from "../data/mutations";
 import { currentRole } from "../api/role";
 import { fuzzyMatch, showPrompt, showToast } from "../ui/kit";
 
-type PaletteKind = "action" | "workspace" | "doc" | "task";
+type PaletteKind = "action" | "doc" | "task";
 
 interface PaletteItem {
   kind: PaletteKind;
   label: string;
   sub: string;
-  icon: string;
   action: () => void;
 }
 
-const ICONS: Record<PaletteKind, string> = {
-  action:
-    '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="20 6 9 17 4 12"/></svg>',
-  workspace:
-    '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="7" height="7"/><rect x="14" y="3" width="7" height="7"/><rect x="14" y="14" width="7" height="7"/><rect x="3" y="14" width="7" height="7"/></svg>',
-  doc: '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/></svg>',
-  task: '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="9"/></svg>',
-};
-
-// Command palette universal (Ctrl+K): búsqueda difusa en acciones,
-// workspaces, documentos y tareas. Teclado primero (Raycast-style).
+// Command palette (Ctrl+K) local-first: busca en el índice local
+// (docs + tareas) — funciona sin conexión.
 export class CommandPalette extends NixComponent {
   private open = signal(false);
   private query = signal("");
@@ -37,7 +27,7 @@ export class CommandPalette extends NixComponent {
     if (this.open.value) {
       this.query.value = "";
       this.selected = 0;
-      void this.build();
+      this.rebuild();
     }
   }
 
@@ -45,69 +35,43 @@ export class CommandPalette extends NixComponent {
     this.open.value = false;
   }
 
-  private async build(): Promise<void> {
+  private rebuild(): void {
     const q = this.query.value.toLowerCase();
-    const items: PaletteItem[] = [];
-
-    items.push({
-      kind: "action",
-      label: "Nueva tarea…",
-      sub: "Quick Add Magic",
-      icon: "action",
-      action: () => {
-        void showPrompt("Nueva tarea", 'ej. "llamar al cliente mañana @ventas !alta"').then((text) => {
-          if (!text) return;
-          void currentRole().then((role) => {
-            if (role === "viewer") {
-              showToast("rol viewer: solo lectura");
-              return;
-            }
-            tasksApi
-              .quickAdd(text)
-              .then((t) => {
-                showToast(`Tarea creada: ${t.title}`);
-                invalidateQueries("tasks/open");
-                invalidateQueries("tasks/done");
-              })
-              .catch((e: Error) => showToast(e.message));
+    const items: PaletteItem[] = [
+      {
+        kind: "action",
+        label: "Nueva tarea…",
+        sub: "Quick Add Magic",
+        action: () => {
+          void showPrompt("Nueva tarea", 'ej. "llamar al cliente mañana @ventas !alta"').then((text) => {
+            if (!text) return;
+            void currentRole().then((role) => {
+              if (role === "viewer") {
+                showToast("rol viewer: solo lectura");
+                return;
+              }
+              quickAddLocal(text)
+                .then((t) => showToast(t ? `Tarea creada: ${t.title}` : "No se pudo interpretar"))
+                .catch((e: Error) => showToast(e.message));
+            });
           });
-        });
+        },
       },
-    });
-    items.push({ kind: "action", label: "Nuevo documento", sub: "Crear en el workspace", icon: "doc", action: () => router.navigate("/docs") });
-    items.push({ kind: "action", label: "Ir a Tareas", sub: "Kanban · tabla · calendario", icon: "action", action: () => router.navigate("/tasks") });
-    items.push({ kind: "action", label: "Ir al Grafo", sub: "Relaciones entre documentos", icon: "action", action: () => router.navigate("/graph") });
+      { kind: "action", label: "Nuevo documento", sub: "Crear en el workspace", action: () => router.navigate("/docs") },
+      { kind: "action", label: "Ir a Tareas", sub: "Kanban · tabla · calendario", action: () => router.navigate("/tasks") },
+      { kind: "action", label: "Ir al Grafo", sub: "Relaciones entre documentos", action: () => router.navigate("/graph") },
+    ];
 
-    if (getToken()) {
-      try {
-        const { workspaces } = await workspacesApi.list();
-        for (const ws of workspaces) {
-          items.push({
-            kind: "workspace",
-            label: ws.name,
-            sub: `workspace · ${ws.role}`,
-            icon: "workspace",
-            action: () => router.navigate("/"),
-          });
-        }
-        const { docs } = await docsApi.list();
-        for (const d of docs) {
-          items.push({ kind: "doc", label: d.title, sub: d.path, icon: "doc", action: () => router.navigate("/docs/" + d.id) });
-        }
-        const open = (await tasksApi.list(false)).tasks;
-        const done = (await tasksApi.list(true)).tasks;
-        for (const t of [...open, ...done].slice(0, 30)) {
-          items.push({
-            kind: "task",
-            label: t.title,
-            sub: t.done === 1 ? "hecha" : t.project ? "@" + t.project : "tarea",
-            icon: "task",
-            action: () => router.navigate("/docs/" + t.doc_id),
-          });
-        }
-      } catch {
-        /* sin sesión */
-      }
+    for (const d of localDocs.value) {
+      items.push({ kind: "doc", label: d.title, sub: d.path, action: () => router.navigate("/docs/" + d.id) });
+    }
+    for (const t of localTasks.value.slice(0, 40)) {
+      items.push({
+        kind: "task",
+        label: t.title,
+        sub: t.done ? "hecha" : t.project ? "@" + t.project : "tarea",
+        action: () => router.navigate("/docs/" + t.docId),
+      });
     }
 
     this.items.value = q ? items.filter((it) => fuzzyMatch(q, it.label + " " + it.sub)) : items;
@@ -134,13 +98,8 @@ export class CommandPalette extends NixComponent {
   }
 
   render(): NixTemplate {
-    const groupLabel: Record<PaletteKind, string> = {
-      action: "Acciones",
-      workspace: "Workspaces",
-      doc: "Documentos",
-      task: "Tareas",
-    };
-    const order: PaletteKind[] = ["action", "workspace", "doc", "task"];
+    const groupLabel: Record<PaletteKind, string> = { action: "Acciones", doc: "Documentos", task: "Tareas" };
+    const order: PaletteKind[] = ["action", "doc", "task"];
     return html`
       ${() =>
         this.open.value
@@ -157,7 +116,7 @@ export class CommandPalette extends NixComponent {
                       value=${() => this.query.value}
                       @input=${(ev: Event) => {
                         this.query.value = (ev.target as HTMLInputElement).value;
-                        void this.build();
+                        this.rebuild();
                       }}
                       @keydown=${(ev: KeyboardEvent) => this.keydown(ev)} />
                   </div>
@@ -175,7 +134,6 @@ export class CommandPalette extends NixComponent {
                                 this.close();
                               }}
                               @mouseenter=${() => (this.selected = this.items.value.indexOf(it))}>
-                              <span class="pi-icon">${ICONS[it.kind]}</span>
                               <span class="pi-text">${it.label}<span class="pi-sub"> · ${it.sub}</span></span>
                             </div>`)}`;
                       })}

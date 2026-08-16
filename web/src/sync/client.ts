@@ -2,6 +2,7 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 import { applyChanges, getCursor, mirrorDoc } from "./local";
 import { enqueue, clearQueue } from "./queue";
+import { showToast } from "../ui/kit";
 
 // Cliente del sync delta (sección 9): push de la cola offline + pull
 // del delta por cursor. Replays con idempotency-key se deduplican en
@@ -32,9 +33,14 @@ export async function pushPending(): Promise<void> {
       headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
       body: JSON.stringify({ commands }),
     });
-    if (!res.ok) {
-      // conflictos LWW no son fatales: se descartan y se vuelve a tirar
+    if (res.status === 401 || res.status === 403) {
+      // sin permiso: se descarta la cola (el servidor decidió) y se avisa
       await clearQueue();
+      showToast("sincronización rechazada por el servidor");
+      return;
+    }
+    if (!res.ok) {
+      // error transitorio: la cola se conserva y se reintenta al reconectar
       return;
     }
     const delta = await res.json();

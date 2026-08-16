@@ -52,6 +52,7 @@ type Querier interface {
 	ListTasksMineToday(ctx context.Context, arg ListTasksMineTodayParams) ([]Task, error)
 	ListWorkspacesByUser(ctx context.Context, userID string) ([]ListWorkspacesByUserRow, error)
 	MarkCommandProcessed(ctx context.Context, arg MarkCommandProcessedParams) error
+	SetDocUpdatedAt(ctx context.Context, arg SetDocUpdatedAtParams) error
 	SetTaskDone(ctx context.Context, arg SetTaskDoneParams) error
 	SoftDeleteDoc(ctx context.Context, arg SoftDeleteDocParams) error
 	UpdateDocContent(ctx context.Context, arg UpdateDocContentParams) error

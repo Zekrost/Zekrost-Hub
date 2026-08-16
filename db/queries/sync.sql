@@ -38,3 +38,7 @@ FROM doc_versions
 WHERE doc_id = ?
 ORDER BY created_at DESC
 LIMIT ?;
+
+-- name: SetDocUpdatedAt :exec
+UPDATE docs SET updated_at = ?
+WHERE workspace_id = ? AND path = ?;

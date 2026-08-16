@@ -197,3 +197,19 @@ func (q *Queries) MarkCommandProcessed(ctx context.Context, arg MarkCommandProce
 	_, err := q.db.ExecContext(ctx, markCommandProcessed, arg.IdempotencyKey, arg.WorkspaceID, arg.CommandJson)
 	return err
 }
+
+const setDocUpdatedAt = `-- name: SetDocUpdatedAt :exec
+UPDATE docs SET updated_at = ?
+WHERE workspace_id = ? AND path = ?
+`
+
+type SetDocUpdatedAtParams struct {
+	UpdatedAt   string `json:"updated_at"`
+	WorkspaceID string `json:"workspace_id"`
+	Path        string `json:"path"`
+}
+
+func (q *Queries) SetDocUpdatedAt(ctx context.Context, arg SetDocUpdatedAtParams) error {
+	_, err := q.db.ExecContext(ctx, setDocUpdatedAt, arg.UpdatedAt, arg.WorkspaceID, arg.Path)
+	return err
+}

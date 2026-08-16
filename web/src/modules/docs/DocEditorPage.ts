@@ -1,14 +1,12 @@
 import { NixComponent, html, ref, signal, type NixTemplate } from "@deijose/nix-js";
 import { marked } from "marked";
 import { router } from "../../router";
-import { docsApi } from "../../api/client";
-import { pushPending, queueDocUpdate } from "../../sync/client";
+import { getLocalDocById, saveDocLocal } from "../../data/mutations";
 import { MarkdownEditor } from "./MarkdownEditor";
 import { escapeHtml, formatDate, isOverdue, showToast } from "../../ui/kit";
 
-// Vista de edición con preview en vivo: CodeMirror a la izquierda,
-// documento renderizado (tareas interactivas) a la derecha. El guardado
-// pasa por la cola offline (P2).
+// Vista de edición local-first: el documento se lee del mirror (100%
+// offline); el guardado escribe el mirror, reindexa y encola el sync.
 export class DocEditorPage extends NixComponent {
   private editor = new MarkdownEditor("", (text) => this.updatePreview(text));
   private status = signal("");
@@ -21,16 +19,18 @@ export class DocEditorPage extends NixComponent {
       this.status.value = "error: sin id de documento";
       return;
     }
-    docsApi
-      .get(id)
-      .then((doc) => {
-        this.current = { id: doc.id, path: doc.path, title: doc.title };
-        this.editor.setDoc(doc.content);
-        this.updatePreview(doc.content);
-      })
-      .catch((e: Error) => {
-        this.status.value = `error: ${e.message}`;
-      });
+    void this.load(id);
+  }
+
+  private async load(id: string): Promise<void> {
+    const doc = await getLocalDocById(id);
+    if (!doc) {
+      this.status.value = "no encontrado";
+      return;
+    }
+    this.current = { id: doc.id, path: doc.path, title: doc.title };
+    this.editor.setDoc(doc.content);
+    this.updatePreview(doc.content);
   }
 
   render(): NixTemplate {
@@ -64,8 +64,6 @@ export class DocEditorPage extends NixComponent {
     this.enhanceTaskLines(preview);
   }
 
-  // Convierte los <li> de tareas en líneas interactivas con checkbox y
-  // badges (mismo patrón del documento de referencia).
   private enhanceTaskLines(preview: HTMLElement): void {
     const items = Array.from(preview.querySelectorAll("li"));
     for (const li of items) {
@@ -102,23 +100,11 @@ export class DocEditorPage extends NixComponent {
     const doc = this.current;
     if (!doc) return;
     this.status.value = "guardando…";
-    queueDocUpdate({
-      id: doc.id,
-      path: doc.path,
-      title: doc.title,
-      content: this.editor.getDoc(),
-      updatedAt: new Date().toISOString().replace("T", " ").slice(0, 19),
-    })
-      .then(() => {
-        this.status.value = "Guardado";
-        window.dispatchEvent(new CustomEvent("hub:docs-changed"));
-      })
+    saveDocLocal({ id: doc.id, path: doc.path, title: doc.title, content: this.editor.getDoc() })
+      .then(() => (this.status.value = "Guardado"))
       .catch(() => {
-        this.status.value = "error al encolar";
+        this.status.value = "error";
         showToast("No se pudo guardar");
-      })
-      .then(() => pushPending())
-      .catch(() => undefined);
+      });
   }
 }
-export default DocEditorPage;

@@ -1,97 +1,18 @@
 import { NixComponent, html, signal, type NixTemplate } from "@deijose/nix-js";
-import { createQuery } from "@deijose/nix-query";
-import { getToken, tasksApi, type Task } from "../../api/client";
+import { localTasks } from "../../data/store";
+import { toggleTaskLocal, quickAddLocal } from "../../data/mutations";
 import { currentRole } from "../../api/role";
 import { formatDate, isOverdue, showToast } from "../../ui/kit";
+import type { LocalTask } from "../../sync/local";
 
-// Params reactivos (signal-driven cache keys de nix-query 1.4).
+// Proyecciones del índice local (kanban/tabla/calendario) — 100% offline.
+const vista = signal<"kanban" | "tabla" | "calendario">(
+  (new URLSearchParams(window.location.hash.split("?")[1] ?? "").get("view") as "tabla" | "calendario") ?? "kanban",
+);
 const tableParams = signal<[string, string]>(["", "0"]);
 const calRange = signal<[string, string]>(monthRange());
-const initialVista = (): "kanban" | "tabla" | "calendario" => {
-  const q = new URLSearchParams(window.location.hash.split("?")[1] ?? "");
-  return q.get("view") === "tabla" || q.get("view") === "calendario" ? (q.get("view") as "tabla" | "calendario") : "kanban";
-};
-const vista = signal<"kanban" | "tabla" | "calendario">(initialVista());
-
-const openTasks = createQuery<Task[] | null, void>(
-  "tasks/open",
-  async () => (getToken() ? (await tasksApi.list(false)).tasks : []),
-  { refetchOnMount: "always" },
-);
-
-const doneTasks = createQuery<Task[] | null, void>(
-  "tasks/done",
-  async () => (getToken() ? (await tasksApi.list(true)).tasks : []),
-  { refetchOnMount: "always" },
-);
-
-const tableTasks = createQuery<Task[] | null, [string, string]>(
-  "tasks/table",
-  async ([proyecto, done]) =>
-    getToken() ? (await tasksApi.listVista("tabla", { proyecto, done })).tasks : [],
-  { refetchOnMount: "always", params: () => tableParams.value },
-);
-
-const calTasks = createQuery<Task[] | null, [string, string]>(
-  "tasks/calendar",
-  async ([desde, hasta]) =>
-    getToken() ? (await tasksApi.listVista("calendario", { desde, hasta })).tasks : [],
-  { refetchOnMount: "always", params: () => calRange.value },
-);
-
-const projects = createQuery<string[], void>(
-  "tasks/projects",
-  async () => {
-    if (!getToken()) return [];
-    const open = (await tasksApi.list(false)).tasks;
-    const done = (await tasksApi.list(true)).tasks;
-    return [...new Set([...open, ...done].map((t) => t.project).filter((p): p is string => !!p))].sort();
-  },
-  { refetchOnMount: "always" },
-);
 
 let quickAddText = "";
-
-function refetchAll(): void {
-  openTasks.refetch();
-  doneTasks.refetch();
-  tableTasks.refetch();
-  calTasks.refetch();
-  projects.refetch();
-}
-
-async function patchTask(task: Task, done: boolean): Promise<void> {
-  const role = await currentRole();
-  if (role === "viewer") {
-    showToast("rol viewer: solo lectura");
-    return;
-  }
-  try {
-    await tasksApi.patch(task.id, { done });
-    refetchAll();
-    showToast(done ? "Tarea completada ✓" : "Tarea reabierta");
-  } catch (e) {
-    showToast((e as Error).message);
-  }
-}
-
-async function quickAdd(): Promise<void> {
-  const raw = quickAddText.trim();
-  if (!raw) return;
-  const role = await currentRole();
-  if (role === "viewer") {
-    showToast("rol viewer: solo lectura");
-    return;
-  }
-  try {
-    const t = await tasksApi.quickAdd(raw);
-    showToast(`Tarea creada: ${t.title}`);
-    quickAddText = "";
-    refetchAll();
-  } catch (e) {
-    showToast((e as Error).message);
-  }
-}
 
 function monthRange(): [string, string] {
   const now = new Date();
@@ -117,10 +38,41 @@ function openDoc(docId: string): void {
   window.dispatchEvent(new CustomEvent("hub:open-doc", { detail: docId }));
 }
 
-function taskBadges(t: Task): NixTemplate {
+async function toggle(task: LocalTask): Promise<void> {
+  const role = await currentRole();
+  if (role === "viewer") {
+    showToast("rol viewer: solo lectura");
+    return;
+  }
+  try {
+    await toggleTaskLocal(task);
+    showToast(task.done ? "Tarea reabierta" : "Tarea completada ✓");
+  } catch (e) {
+    showToast((e as Error).message);
+  }
+}
+
+async function quickAdd(): Promise<void> {
+  const raw = quickAddText.trim();
+  if (!raw) return;
+  const role = await currentRole();
+  if (role === "viewer") {
+    showToast("rol viewer: solo lectura");
+    return;
+  }
+  try {
+    const t = await quickAddLocal(raw);
+    showToast(t ? `Tarea creada: ${t.title}` : "No se pudo interpretar la tarea");
+    quickAddText = "";
+  } catch (e) {
+    showToast((e as Error).message);
+  }
+}
+
+function taskBadges(t: LocalTask): NixTemplate {
   return html`
-    ${t.due_date
-      ? html`<span class=${"badge date" + (isOverdue(t.due_date) ? " overdue" : "")}>${formatDate(t.due_date)}</span>`
+    ${t.dueDate
+      ? html`<span class=${"badge" + " date" + (isOverdue(t.dueDate) ? " overdue" : "")}>${formatDate(t.dueDate)}</span>`
       : ""}
     ${t.project ? html`<span class="badge project">${"@" + t.project}</span>` : ""}
     ${t.priority ? html`<span class=${"badge priority-" + t.priority}>${t.priority}</span>` : ""}
@@ -129,14 +81,14 @@ function taskBadges(t: Task): NixTemplate {
 
 // ---------------------------- Kanban ----------------------------
 
-function kanbanColumn(label: string, dot: string, done: boolean, getter: () => Task[]): NixTemplate {
+function kanbanColumn(label: string, dot: string, getter: () => LocalTask[]): NixTemplate {
   return html`
-    <div class=${"kanban-col " + dot}>
+    <div class=${"kanban-col" + " " + dot}>
       <div class="kanban-col-header">
         <span><span class="dot"></span>${label}</span>
         <span class="count">${() => getter().length}</span>
       </div>
-      <div class="kanban-col-body" data-done=${done ? "1" : "0"}
+      <div class="kanban-col-body" data-done=${dot === "done" ? "1" : "0"}
         @dragover=${(ev: DragEvent) => {
           ev.preventDefault();
           ev.dataTransfer!.dropEffect = "move";
@@ -147,11 +99,12 @@ function kanbanColumn(label: string, dot: string, done: boolean, getter: () => T
           ev.preventDefault();
           (ev.currentTarget as HTMLElement).classList.remove("drag-over");
           const id = ev.dataTransfer?.getData("text/plain");
-          const target = [...(openTasks.data.value ?? []), ...(doneTasks.data.value ?? [])].find((t) => t.id === id);
-          if (target) void patchTask(target, done);
+          const target = localTasks.value.find((t) => t.id === id);
+          if (target) void toggle(target);
         }}>
-        ${() => getter().map((t) => html`
-            <div class=${"task-card" + (t.done === 1 ? " done" : "")} draggable="true"
+        ${() =>
+          getter().map((t) => html`
+            <div class=${"task-card" + (t.done ? " done" : "")} draggable="true"
               @dragstart=${(ev: DragEvent) => {
                 (ev.currentTarget as HTMLElement).classList.add("dragging");
                 ev.dataTransfer?.setData("text/plain", t.id);
@@ -164,7 +117,7 @@ function kanbanColumn(label: string, dot: string, done: boolean, getter: () => T
                 <span class="source-doc" title="Abrir documento"
                   @click=${(ev: MouseEvent) => {
                     ev.stopPropagation();
-                    openDoc(t.doc_id);
+                    openDoc(t.docId);
                   }}>
                   <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/></svg>
                   Ver
@@ -190,9 +143,9 @@ function kanbanView(): NixTemplate {
       <span class="quick-add-hint">Enter para crear · #fecha @proyecto !prioridad</span>
     </div>
     <div class="kanban-board">
-      ${() => kanbanColumn("Por hacer", "todo", false, () => (openTasks.data.value ?? []).filter((t) => t.in_progress === 0))}
-      ${() => kanbanColumn("En progreso", "doing", false, () => (openTasks.data.value ?? []).filter((t) => t.in_progress === 1))}
-      ${() => kanbanColumn("Hecho", "done", true, () => doneTasks.data.value ?? [])}
+      ${() => kanbanColumn("Por hacer", "todo", () => localTasks.value.filter((t) => !t.done && !t.inProgress))}
+      ${() => kanbanColumn("En progreso", "doing", () => localTasks.value.filter((t) => !t.done && t.inProgress))}
+      ${() => kanbanColumn("Hecho", "done", () => localTasks.value.filter((t) => t.done))}
     </div>
     <p class="muted" style="padding: 0 20px 14px">
       Arrastra una tarjeta para cambiar su estado · El cambio reescribe el Markdown fuente (round-trip)
@@ -203,6 +156,12 @@ function kanbanView(): NixTemplate {
 // ---------------------------- Tabla ----------------------------
 
 function tablaView(): NixTemplate {
+  const rows = localTasks.value.filter((t) => {
+    const [proyecto, done] = tableParams.value;
+    if (proyecto && t.project !== proyecto) return false;
+    if (done === "1" ? !t.done : t.done) return false;
+    return true;
+  });
   return html`
     <div class="list-toolbar">
       <select value=${() => tableParams.value[0]}
@@ -210,7 +169,8 @@ function tablaView(): NixTemplate {
           tableParams.value = [(ev.target as HTMLSelectElement).value, tableParams.value[1]];
         }}>
         <option value="">Todos los proyectos</option>
-        ${() => (projects.data.value ?? []).map((p) => html`<option value=${p}>@${p}</option>`)}
+        ${() =>
+          [...new Set(localTasks.value.map((t) => t.project).filter((p): p is string => !!p))].sort().map((p) => html`<option value=${p}>@${p}</option>`)}
       </select>
       <select value=${() => tableParams.value[1]}
         @change=${(ev: Event) => {
@@ -226,19 +186,27 @@ function tablaView(): NixTemplate {
           <tr><th style="width: 30px"></th><th>Tarea</th><th>Fecha</th><th>Proyecto</th><th>Prioridad</th></tr>
         </thead>
         <tbody>
-          ${() => (tableTasks.data.value ?? []).map((t) => html`
-            <tr>
-              <td>
-                <button class=${"mini-checkbox" + (t.done === 1 ? " checked" : "")} aria-label="completar"
-                  @click=${() => void patchTask(t, t.done !== 1)}></button>
-              </td>
-              <td><span class=${t.done === 1 ? "task-text-done" : ""}>${t.title}</span></td>
-              <td>${t.due_date ? html`<span class=${"badge date" + (isOverdue(t.due_date) ? " overdue" : "")}>${formatDate(t.due_date)}</span>` : html`<span class="faint">—</span>`}</td>
-              <td>${t.project ? html`<span class="badge project">${"@" + t.project}</span>` : html`<span class="faint">—</span>`}</td>
-              <td>${t.priority ? html`<span class=${"badge priority-" + t.priority}>${t.priority}</span>` : ""}</td>
-            </tr>`)}
           ${() =>
-            (tableTasks.data.value ?? []).length === 0
+            localTasks.value
+              .filter((t) => {
+                const [proyecto, done] = tableParams.value;
+                if (proyecto && t.project !== proyecto) return false;
+                if (done === "1" ? !t.done : t.done) return false;
+                return true;
+              })
+              .map((t) => html`
+                <tr>
+                  <td>
+                    <button class=${"mini-checkbox" + (t.done ? " checked" : "")} aria-label="completar"
+                      @click=${() => void toggle(t)}></button>
+                  </td>
+                  <td><span class=${t.done ? "task-text-done" : ""}>${t.title}</span></td>
+                  <td>${t.dueDate ? html`<span class=${"badge" + " date" + (isOverdue(t.dueDate) ? " overdue" : "")}>${formatDate(t.dueDate)}</span>` : html`<span class="faint">—</span>`}</td>
+                  <td>${t.project ? html`<span class="badge project">${"@" + t.project}</span>` : html`<span class="faint">—</span>`}</td>
+                  <td>${t.priority ? html`<span class=${"badge priority-" + t.priority}>${t.priority}</span>` : ""}</td>
+                </tr>`)}
+          ${() =>
+            rows.length === 0
               ? html`<tr><td colspan="5" class="empty-state">No hay tareas que coincidan con los filtros</td></tr>`
               : ""}
         </tbody>
@@ -290,10 +258,10 @@ function calendarioView(): NixTemplate {
           <div class=${"calendar-cell" + (cell.other ? " other-month" : "") + (cell.isToday ? " today" : "")}>
             <div class="day-number">${Number(cell.date.slice(8, 10))}</div>
             ${() =>
-              (calTasks.data.value ?? [])
-                .filter((t) => t.due_date === cell.date && !cell.other)
-                .map((t) => html`<button class=${"cal-task " + (t.priority ?? "") + (t.done === 1 ? " done" : "")}
-                  title=${t.title} @click=${() => openDoc(t.doc_id)}>${t.title}</button>`)}
+              localTasks.value
+                .filter((t) => t.dueDate === cell.date && !cell.other)
+                .map((t) => html`<button class=${"cal-task" + " " + (t.priority ?? "") + (t.done ? " done" : "")}
+                  title=${t.title} @click=${() => openDoc(t.docId)}>${t.title}</button>`)}
           </div>`)}
       </div>
     </div>
@@ -302,14 +270,7 @@ function calendarioView(): NixTemplate {
 
 // ----------------------------- Page -----------------------------
 
-// Página como clase: onMount garantiza datos frescos cada vez que se
-// navega (los queries module-level se crean al arrancar, antes del
-// login, y refetchOnMount no vuelve a disparar sin unmount real).
 export class TasksPage extends NixComponent {
-  onMount(): void {
-    refetchAll();
-  }
-
   render(): NixTemplate {
     return html`
       <div class="page">
@@ -318,11 +279,7 @@ export class TasksPage extends NixComponent {
           <div class="tabs">
             ${(["kanban", "tabla", "calendario"] as const).map(
               (v) => html`<button class=${"tab" + (vista.value === v ? " active" : "")}
-                @click=${() => {
-                  vista.value = v;
-                  if (v === "tabla") tableTasks.refetch();
-                  if (v === "calendario") calTasks.refetch();
-                }}>${v}</button>`,
+                @click=${() => (vista.value = v)}>${v}</button>`,
             )}
           </div>
         </div>
@@ -336,4 +293,3 @@ export class TasksPage extends NixComponent {
     `;
   }
 }
-export default TasksPage;

@@ -1,21 +1,32 @@
-// Copyright (C) 2026 Zekrost <tech@zekrost.com>
-// SPDX-License-Identifier: AGPL-3.0-only
 import { workspacesApi } from "./client";
 
-let cached: Promise<string> | null = null;
+const ROLE_KEY = "hub:role";
 
-// Rol del primer workspace (fase MVP). La UI solo lo refleja; el
-// backend garantiza la autorización real (sección 4.3).
-export function currentRole(): Promise<string> {
-  if (!cached) {
-    cached = workspacesApi
-      .list()
-      .then((r) => r.workspaces[0]?.role ?? "viewer")
-      .catch(() => "viewer");
+// Rol del workspace cacheado localmente: offline-first, la UI no debe
+// bloquear el trabajo local por falta de red (el backend valida en el
+// push). La autorización real siempre la garantiza el servidor.
+export function cachedRole(): string | null {
+  try {
+    return localStorage.getItem(ROLE_KEY);
+  } catch {
+    return null;
   }
-  return cached;
+}
+
+export async function currentRole(): Promise<string> {
+  const cached = cachedRole();
+  try {
+    const { workspaces } = await workspacesApi.list();
+    const role = workspaces[0]?.role ?? "viewer";
+    localStorage.setItem(ROLE_KEY, role);
+    return role;
+  } catch {
+    // offline: usar la copia cacheada; sin caché, permitir (el servidor
+    // decide al sincronizar)
+    return cached ?? "editor";
+  }
 }
 
 export function resetRoleCache(): void {
-  cached = null;
+  localStorage.removeItem(ROLE_KEY);
 }
