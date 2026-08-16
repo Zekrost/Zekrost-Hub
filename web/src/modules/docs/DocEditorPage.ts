@@ -3,6 +3,7 @@ import { marked } from "marked";
 import { router } from "../../router";
 import { getLocalDocById, saveDocLocal } from "../../data/mutations";
 import { MarkdownEditor } from "./MarkdownEditor";
+import { parseLine } from "../../tasks/parser";
 import { escapeHtml, formatDate, isOverdue, showToast } from "../../ui/kit";
 
 // Vista de edición local-first: el documento se lee del mirror (100%
@@ -67,29 +68,37 @@ export class DocEditorPage extends NixComponent {
   private enhanceTaskLines(preview: HTMLElement): void {
     const items = Array.from(preview.querySelectorAll("li"));
     for (const li of items) {
+      // GFM convierte '- [ ]' / '- [x]' en <input type="checkbox">
+      // (el texto del li ya no empieza por '['); '- [~]' queda literal.
+      const box = li.querySelector('input[type="checkbox"]') as HTMLInputElement | null;
       const text = li.textContent ?? "";
-      const m = text.match(/^\[([ xX~])\]\s+(.+)$/s);
-      if (!m) continue;
-      const state = m[1].toLowerCase();
-      const done = state === "x";
-      const doing = state === "~";
-      const rest = m[2];
-      const date = rest.match(/#(\d{4}-\d{2}-\d{2})/)?.[1] ?? null;
-      const project = rest.match(/@([\w.-]+)/i)?.[1] ?? null;
-      const priority = rest.match(/!(alta|media|baja)/i)?.[1]?.toLowerCase() ?? null;
-      const title = rest.replace(/#\d{4}-\d{2}-\d{2}/, "").replace(/@[\w.-]+/i, "").replace(/!(alta|media|baja)/i, "").trim();
+      if (!box && !/^\[[ xX~]\]\s/.test(text)) continue;
+
+      const state = box ? (box.checked ? "x" : " ") : text[1];
+      const clone = li.cloneNode(true) as HTMLElement;
+      clone.querySelectorAll("input").forEach((n) => n.remove());
+      let rest = (clone.textContent ?? "").trim();
+      // '- [~]' lo deja marked como literal: quitar el prefijo '[~]'
+      if (!box) rest = rest.replace(/^\[[ xX~]\]\s*/, "");
+
+      const task = parseLine(`- [${state}] ${rest}`);
+      if (!task) continue;
 
       const badges: string[] = [];
-      if (date) badges.push(`<span class="badge date ${isOverdue(date) ? "overdue" : ""}">${formatDate(date)}</span>`);
-      if (project) badges.push(`<span class="badge project">@${escapeHtml(project)}</span>`);
-      if (priority) badges.push(`<span class="badge priority-${escapeHtml(priority)}">${escapeHtml(priority)}</span>`);
+      if (task.dueDate) {
+        badges.push(`<span class="badge date ${isOverdue(task.dueDate) ? "overdue" : ""}">${formatDate(task.dueDate)}</span>`);
+      }
+      if (task.project) badges.push(`<span class="badge project">@${escapeHtml(task.project)}</span>`);
+      if (task.priority) badges.push(`<span class="badge priority-${escapeHtml(task.priority)}">${escapeHtml(task.priority)}</span>`);
+      if (task.assignee) badges.push(`<span class="badge assignee">~${escapeHtml(task.assignee)}</span>`);
+      for (const tg of task.tags) badges.push(`<span class="badge tag">+${escapeHtml(tg)}</span>`);
 
       const div = document.createElement("div");
-      div.className = `task-line ${done ? "done" : doing ? "doing" : ""}`;
+      div.className = `task-line ${task.done ? "done" : task.inProgress ? "doing" : ""}`;
       div.innerHTML = `
-        <div class="task-checkbox ${done ? "checked" : doing ? "in-progress" : ""}"></div>
+        <div class="task-checkbox ${task.done ? "checked" : task.inProgress ? "in-progress" : ""}"></div>
         <div class="task-body">
-          <span class="task-text">${escapeHtml(title)}</span>
+          <span class="task-text">${escapeHtml(task.title)}</span>
           <span class="task-badges">${badges.join("")}</span>
         </div>`;
       li.replaceWith(div);

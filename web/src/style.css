@@ -4,32 +4,32 @@
    ========================================================================== */
 
 :root {
-  /* Paleta base */
-  --bg: #0a0b0f;
-  --bg-soft: #0f1117;
-  --bg-elevated: #161922;
-  --bg-hover: #1e212c;
-  --border: #232633;
-  --border-soft: #1a1d27;
-  --text: #e6e8ee;
-  --text-dim: #8b8f9e;
-  --text-faint: #5a5e6e;
+  /* Paleta base — marca Zekrost */
+  --bg: #f8f9fa;
+  --bg-soft: #eef2f7;
+  --bg-elevated: #ffffff;
+  --bg-hover: #e4eaf1;
+  --border: #d5dde7;
+  --border-soft: #e3e9f0;
+  --text: #1b2a4a;
+  --text-dim: #46597a;
+  --text-faint: #8496b3;
 
-  /* Acento único (indigo) */
-  --accent: #6366f1;
-  --accent-hover: #7c7ff5;
-  --accent-soft: rgba(99, 102, 241, 0.13);
-  --accent-glow: rgba(99, 102, 241, 0.35);
+  /* Acento único (cian Zekrost) */
+  --accent: #00b4d8;
+  --accent-hover: #0096b5;
+  --accent-soft: rgba(0, 180, 216, 0.14);
+  --accent-glow: rgba(0, 180, 216, 0.3);
 
   /* Semántica */
-  --red: #ef4444;
-  --red-soft: rgba(239, 68, 68, 0.13);
-  --amber: #f59e0b;
-  --amber-soft: rgba(245, 158, 11, 0.13);
-  --green: #10b981;
-  --green-soft: rgba(16, 185, 129, 0.13);
+  --red: #e5484d;
+  --red-soft: rgba(229, 72, 77, 0.12);
+  --amber: #d97706;
+  --amber-soft: rgba(217, 119, 6, 0.12);
+  --green: #18a058;
+  --green-soft: rgba(24, 160, 88, 0.12);
   --blue: #3b82f6;
-  --blue-soft: rgba(59, 130, 246, 0.13);
+  --blue-soft: rgba(59, 130, 246, 0.12);
 
   /* Geometría */
   --radius-sm: 6px;
@@ -44,6 +44,7 @@
 
   /* Tipografía */
   --font-ui: "Inter", system-ui, -apple-system, "Segoe UI", sans-serif;
+  --font-display: "Poppins", "Inter", system-ui, sans-serif;
   --font-mono: "JetBrains Mono", ui-monospace, monospace;
 }
 
@@ -100,6 +101,7 @@ input, textarea, select { background: none; border: none; outline: none; }
   display: flex;
   align-items: center;
   gap: 10px;
+  font-family: var(--font-display);
   font-weight: 700;
   font-size: 14px;
   letter-spacing: -0.01em;
@@ -108,7 +110,7 @@ input, textarea, select { background: none; border: none; outline: none; }
 .logo-mark {
   width: 26px;
   height: 26px;
-  background: linear-gradient(135deg, var(--accent), #8b5cf6);
+  background: linear-gradient(135deg, #1b2a4a, var(--accent));
   border-radius: 7px;
   display: grid;
   place-items: center;
@@ -118,6 +120,8 @@ input, textarea, select { background: none; border: none; outline: none; }
   box-shadow: 0 4px 12px var(--accent-glow);
   flex-shrink: 0;
 }
+
+h1, h2, h3, h4 { font-family: var(--font-display); }
 
 .sidebar-search { padding: 0 12px 12px; }
 
@@ -486,6 +490,8 @@ kbd {
 .badge.date { background: var(--blue-soft); color: var(--blue); }
 .badge.date.overdue { background: var(--red-soft); color: var(--red); }
 .badge.project { background: var(--bg-elevated); color: var(--text-dim); }
+.badge.assignee { background: var(--accent-soft); color: var(--accent-hover); }
+.badge.tag { background: var(--bg-elevated); color: var(--text-dim); border: 1px dashed var(--border); }
 .badge.priority-alta { background: var(--red-soft); color: var(--red); }
 .badge.priority-media { background: var(--amber-soft); color: var(--amber); }
 .badge.priority-baja { background: var(--green-soft); color: var(--green); }

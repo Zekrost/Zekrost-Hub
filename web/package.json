@@ -34,6 +34,7 @@
     "@deijose/nix-query": "1.4.2",
     "@fontsource/inter": "^5.3.0",
     "@fontsource/jetbrains-mono": "^5.3.0",
+    "@fontsource/poppins": "^5.3.0",
     "dexie": "4.4.5",
     "flexsearch": "0.8.212",
     "marked": "^18.0.9"
