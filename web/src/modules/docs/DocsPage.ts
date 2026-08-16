@@ -3,7 +3,6 @@ import { router } from "../../router";
 import { currentRole } from "../../api/role";
 import { localDocs } from "../../data/store";
 import { activeWs } from "../../data/workspace";
-import { activeWs } from "../../data/workspace";
 import { createDocLocal } from "../../data/mutations";
 import { showPrompt, showToast } from "../../ui/kit";
 
