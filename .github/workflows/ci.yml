@@ -102,10 +102,24 @@ jobs:
           username: ${{ github.actor }}
           password: ${{ secrets.GITHUB_TOKEN }}
 
-      - name: GoReleaser
+      - name: Install GoReleaser
         uses: goreleaser/goreleaser-action@v6
         with:
           version: v2.17.1
-          args: release --clean
+          install_only: true
+
+      - name: GoReleaser
+        run: |
+          set +e
+          goreleaser release --clean > /tmp/goreleaser.log 2>&1
+          EXIT=$?
+          if [ $EXIT -ne 0 ]; then
+            tail -50 /tmp/goreleaser.log | sed 's/%/%25/g; s/
+/%0A/g; s//%0D/g' | while read -r line; do
+              echo "::error::$line"
+            done
+          fi
+          cat /tmp/goreleaser.log
+          exit $EXIT
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
