@@ -50,8 +50,8 @@ dockers:
     goarch: amd64
     dockerfile: Dockerfile.goreleaser
     image_templates:
-      - "ghcr.io/zekrost/hub:{{ .Version }}"
-      - "ghcr.io/zekrost/hub:latest"
+      - "ghcr.io/zekrost/zekrost-hub:{{ .Version }}"
+      - "ghcr.io/zekrost/zekrost-hub:latest"
     build_flag_templates:
       - "--platform=linux/amd64"
   - id: hub-docker-arm64
@@ -60,8 +60,8 @@ dockers:
     goarch: arm64
     dockerfile: Dockerfile.goreleaser
     image_templates:
-      - "ghcr.io/zekrost/hub:{{ .Version }}-arm64"
-      - "ghcr.io/zekrost/hub:latest-arm64"
+      - "ghcr.io/zekrost/zekrost-hub:{{ .Version }}-arm64"
+      - "ghcr.io/zekrost/zekrost-hub:latest-arm64"
     build_flag_templates:
       - "--platform=linux/arm64"
 

@@ -66,7 +66,7 @@ docker run -d \
   -v hub-data:/data \
   -p 8080:8080 \
   -e HUB_JWT_SECRET=<your-secret> \
-  ghcr.io/zekrost/hub:latest
+  ghcr.io/zekrost/zekrost-hub:latest
 ```
 
 Open [http://localhost:8080](http://localhost:8080).
