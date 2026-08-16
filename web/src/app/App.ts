@@ -1,10 +1,11 @@
 import { NixComponent, RouterView, html, signal, type NixTemplate } from "@deijose/nix-js";
 import { CommandPalette } from "./CommandPalette";
 import { router } from "../router";
-import { getToken, workspacesApi } from "../api/client";
+import { workspacesApi } from "../api/client";
 import { queueLength } from "../sync/queue";
-import { localDocs } from "../data/store";
-import { bootstrapLocal } from "../data/store";
+import { localDocs, bootstrapLocal } from "../data/store";
+import { HomePage } from "../modules/home/HomePage";
+import { clearToken, getToken } from "../api/client";
 import { escapeHtml } from "../ui/kit";
 
 const WS_COLORS = ["#6366f1", "#10b981", "#f59e0b", "#ec4899", "#3b82f6", "#8b5cf6"];
@@ -40,13 +41,26 @@ export class App extends NixComponent {
       const id = (ev as CustomEvent<string>).detail;
       if (id) router.navigate("/docs/" + id);
     };
+    const onAuthChange = () => {
+      this.authed.value = getToken() !== null;
+      if (this.authed.value) {
+        void this.bootstrap();
+        if (router.current.value === "/") router.navigate("/docs");
+      } else if (router.current.value !== "/") {
+        router.navigate("/");
+      }
+    };
     window.addEventListener("keydown", onKey);
     window.addEventListener("hub:open-doc", onOpenDoc);
+    window.addEventListener("hub:login", onAuthChange);
+    window.addEventListener("hub:logout", onAuthChange);
     void refresh();
     void this.bootstrap();
     return () => {
       window.removeEventListener("keydown", onKey);
       window.removeEventListener("hub:open-doc", onOpenDoc);
+      window.removeEventListener("hub:login", onAuthChange);
+      window.removeEventListener("hub:logout", onAuthChange);
       window.removeEventListener("online", refresh);
       window.removeEventListener("offline", refresh);
     };
@@ -67,9 +81,13 @@ export class App extends NixComponent {
   }
 
   render(): NixTemplate {
+    // Gate: el shell permanece montado (RouterView estable) y se oculta
+    // sin sesión; la pantalla auth se superpone. Evita re-mounts del
+    // RouterView en transiciones de sesión.
     return html`
       <div class="app-shell">
-        <aside class="sidebar ${() => (this.sidebarOpen.value ? "open" : "")}">
+        <aside class="sidebar ${() => (this.sidebarOpen.value ? "open" : "")}"
+          style=${() => (this.authed.value ? "" : "display:none")}>
           <div class="logo">
             <div class="logo-mark">Z</div>
             <span>Zekrost Hub</span>
@@ -133,7 +151,7 @@ export class App extends NixComponent {
         </aside>
 
         <main class="main">
-          <header class="topbar">
+          <header class="topbar" style=${() => (this.authed.value ? "" : "display:none")}>
             <button class="menu-toggle" @click=${() => (this.sidebarOpen.value = !this.sidebarOpen.value)}>
               <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="3" y1="12" x2="21" y2="12"/><line x1="3" y1="6" x2="21" y2="6"/><line x1="3" y1="18" x2="21" y2="18"/></svg>
             </button>

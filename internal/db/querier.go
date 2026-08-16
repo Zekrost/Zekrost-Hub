@@ -10,15 +10,18 @@ import (
 
 type Querier interface {
 	AddMembership(ctx context.Context, arg AddMembershipParams) error
+	CountUsers(ctx context.Context) (int64, error)
 	// Copyright (C) 2026 Zekrost <tech@zekrost.com>
 	// SPDX-License-Identifier: AGPL-3.0-only
 	CreateDoc(ctx context.Context, arg CreateDocParams) error
+	CreateRefreshToken(ctx context.Context, arg CreateRefreshTokenParams) error
 	// Copyright (C) 2026 Zekrost <tech@zekrost.com>
 	// SPDX-License-Identifier: AGPL-3.0-only
 	CreateUser(ctx context.Context, arg CreateUserParams) error
 	// Copyright (C) 2026 Zekrost <tech@zekrost.com>
 	// SPDX-License-Identifier: AGPL-3.0-only
 	CreateWorkspace(ctx context.Context, arg CreateWorkspaceParams) error
+	DeleteExpiredRefreshTokens(ctx context.Context) error
 	DeleteTasksForDoc(ctx context.Context, docID string) error
 	GetChangesAfter(ctx context.Context, arg GetChangesAfterParams) ([]ChangeLog, error)
 	GetDoc(ctx context.Context, arg GetDocParams) (Doc, error)
@@ -26,6 +29,7 @@ type Querier interface {
 	GetDocByPath(ctx context.Context, arg GetDocByPathParams) (GetDocByPathRow, error)
 	GetDocVersions(ctx context.Context, arg GetDocVersionsParams) ([]GetDocVersionsRow, error)
 	GetMembership(ctx context.Context, arg GetMembershipParams) (Membership, error)
+	GetRefreshTokenByID(ctx context.Context, id string) (RefreshToken, error)
 	GetTaskByID(ctx context.Context, arg GetTaskByIDParams) (GetTaskByIDRow, error)
 	GetUserByEmail(ctx context.Context, email string) (User, error)
 	GetUserByID(ctx context.Context, id string) (User, error)
@@ -52,6 +56,7 @@ type Querier interface {
 	ListTasksMineToday(ctx context.Context, arg ListTasksMineTodayParams) ([]Task, error)
 	ListWorkspacesByUser(ctx context.Context, userID string) ([]ListWorkspacesByUserRow, error)
 	MarkCommandProcessed(ctx context.Context, arg MarkCommandProcessedParams) error
+	RevokeRefreshToken(ctx context.Context, id string) error
 	SetDocUpdatedAt(ctx context.Context, arg SetDocUpdatedAtParams) error
 	SetTaskDone(ctx context.Context, arg SetTaskDoneParams) error
 	SoftDeleteDoc(ctx context.Context, arg SoftDeleteDocParams) error

@@ -35,9 +35,15 @@ export interface SearchResult {
 }
 
 const TOKEN_KEY = "hub:token";
+const REFRESH_KEY = "hub:refresh";
+const EXPIRES_KEY = "hub:expires";
 
 export function getToken(): string | null {
   return localStorage.getItem(TOKEN_KEY);
+}
+
+export function getRefreshToken(): string | null {
+  return localStorage.getItem(REFRESH_KEY);
 }
 
 export function setToken(token: string): void {
@@ -46,9 +52,56 @@ export function setToken(token: string): void {
 
 export function clearToken(): void {
   localStorage.removeItem(TOKEN_KEY);
+  localStorage.removeItem(REFRESH_KEY);
+  localStorage.removeItem(EXPIRES_KEY);
 }
 
-async function api<T>(path: string, init: RequestInit = {}): Promise<T> {
+// setSession guarda el par de tokens + expiración del access.
+export function setSession(session: { access_token: string; refresh_token: string; expires_in?: number }): void {
+  localStorage.setItem(TOKEN_KEY, session.access_token);
+  localStorage.setItem(REFRESH_KEY, session.refresh_token);
+  if (session.expires_in) {
+    localStorage.setItem(EXPIRES_KEY, String(Date.now() + session.expires_in * 1000));
+  }
+}
+
+export function sessionExpired(): boolean {
+  const exp = Number(localStorage.getItem(EXPIRES_KEY) ?? "0");
+  return exp > 0 && Date.now() > exp;
+}
+
+let refreshInFlight: Promise<boolean> | null = null;
+
+// refreshSession renueva el par con el refresh token (single-flight:
+// las llamadas concurrentes comparten la misma petición).
+export function refreshSession(): Promise<boolean> {
+  if (!refreshInFlight) {
+    refreshInFlight = (async () => {
+      const refresh = getRefreshToken();
+      if (!refresh) return false;
+      try {
+        const res = await fetch("/api/v1/auth/refresh", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ refresh_token: refresh }),
+        });
+        if (!res.ok) return false;
+        const session = await res.json();
+        setSession(session);
+        return true;
+      } catch {
+        return false;
+      } finally {
+        refreshInFlight = null;
+      }
+    })();
+  }
+  return refreshInFlight;
+}
+
+// apiFetch es el helper autenticado: ante 401 renueva el token (una vez)
+// y reintenta; si el refresh falla, limpia la sesión y emite hub:logout.
+export async function apiFetch<T>(path: string, init: RequestInit = {}): Promise<T> {
   const headers: Record<string, string> = {
     "Content-Type": "application/json",
     ...(init.headers as Record<string, string>),
@@ -56,7 +109,19 @@ async function api<T>(path: string, init: RequestInit = {}): Promise<T> {
   const token = getToken();
   if (token) headers.Authorization = `Bearer ${token}`;
 
-  const res = await fetch(`/api/v1${path}`, { ...init, headers });
+  let res = await fetch(`/api/v1${path}`, { ...init, headers });
+  if (res.status === 401) {
+    const refreshed = await refreshSession();
+    if (refreshed) {
+      headers.Authorization = `Bearer ${getToken()}`;
+      res = await fetch(`/api/v1${path}`, { ...init, headers });
+    }
+  }
+  if (res.status === 401) {
+    // tras un refresh fallido la sesión ya no existe
+    clearToken();
+    window.dispatchEvent(new CustomEvent("hub:logout"));
+  }
   if (!res.ok) {
     const body = await res.json().catch(() => ({}));
     throw new Error(body?.error?.message ?? `HTTP ${res.status}`);
@@ -65,17 +130,28 @@ async function api<T>(path: string, init: RequestInit = {}): Promise<T> {
   return res.json();
 }
 
+function api<T>(path: string, init: RequestInit = {}): Promise<T> {
+  return apiFetch<T>(path, init);
+}
+
 export const authApi = {
   register: (email: string, password: string, displayName: string) =>
-    api<{ access_token: string }>("/auth/register", {
+    api<{ access_token: string; refresh_token: string; expires_in?: number }>("/auth/register", {
       method: "POST",
       body: JSON.stringify({ email, password, display_name: displayName }),
     }),
   login: (email: string, password: string) =>
-    api<{ access_token: string }>("/auth/login", {
+    api<{ access_token: string; refresh_token: string; expires_in?: number }>("/auth/login", {
       method: "POST",
       body: JSON.stringify({ email, password }),
     }),
+  logout: () =>
+    apiFetch<void>("/auth/logout", {
+      method: "POST",
+      body: JSON.stringify({ refresh_token: getRefreshToken() }),
+    }),
+  me: () => apiFetch<{ id: string; email: string; display_name: string }>("/auth/me"),
+  status: () => api<{ has_users: boolean }>("/auth/status"),
 };
 
 export const docsApi = {

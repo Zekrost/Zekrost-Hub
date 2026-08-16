@@ -4,6 +4,25 @@ Todos los cambios notables de Zekrost Hub se documentan aquí.
 Formato basado en [Keep a Changelog](https://keepachangelog.com/es/1.1.0/) y
 [Semantic Versioning](https://semver.org/lang/es/).
 
+## [0.1.2] — 2026-08-16
+
+### Added
+
+- **Autenticación completa de punta a punta**:
+  - Pantalla de registro real (tabs Entrar/Crear cuenta); en el primer
+    arranque (sin usuarios) "Crear cuenta" es la opción por defecto.
+  - **Refresh rotativo**: `POST /auth/refresh` público rota el par de
+    tokens (el viejo queda revocado, el nuevo persistido con hash);
+    renovación silenciosa en la UI ante 401 (single-flight).
+  - Guardia de sesión: sin token solo se ve la pantalla auth; rutas
+    internas protegidas con `meta.auth` + `beforeEach`.
+  - `GET /auth/me` (usuario en Ajustes) y `GET /auth/status`
+    (`has_users` para el primer arranque).
+  - **Onboarding**: registrarse crea el workspace "Personal" automáticamente.
+  - Cerrar sesión desde Ajustes revoca el refresh.
+  - Fix pérdida de datos: la cola offline ya no se descarta en 401
+    (solo en 403 tras refresh válido).
+
 ## [0.1.1] — 2026-08-16
 
 ### Added

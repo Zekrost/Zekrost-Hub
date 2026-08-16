@@ -174,7 +174,9 @@ npm run dev     # Vite dev server on :5173 (proxies /api → :8080)
 
 ## API
 
-Everything the UI does, the API does. Bearer-token auth.
+Everything the UI does, the API does. Bearer-token auth with rotating
+refresh tokens (silent renewal — you only log in every 30 days or on
+first run). Registering creates your "Personal" workspace automatically.
 
 ```bash
 # Register & login

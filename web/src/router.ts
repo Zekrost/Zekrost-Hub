@@ -10,13 +10,24 @@ import { SettingsPage } from "./modules/settings/SettingsPage";
 // Rutas con carga directa: el bundle es pequeño (<20 KB) y la navegación
 // es instantánea sin estados de carga intermedios.
 const routes: RouteRecord[] = [
-  { path: "/", component: () => HomePage(), meta: { auth: false } },
-  { path: "/docs", component: () => new DocsPage(), meta: { auth: false } },
-  { path: "/docs/:id", component: () => new DocEditorPage(), meta: { auth: false } },
-  { name: "tasks", path: "/tasks", component: () => new TasksPage(), meta: { auth: false } },
-  { path: "/search", component: () => SearchPage(), meta: { auth: false } },
-  { path: "/graph", component: () => new GraphPage(), meta: { auth: false } },
-  { path: "/settings", component: () => SettingsPage(), meta: { auth: false } },
+  { path: "/", component: () => new HomePage(), meta: { auth: false } },
+  { path: "/docs", component: () => new DocsPage(), meta: { auth: true } },
+  { path: "/docs/:id", component: () => new DocEditorPage(), meta: { auth: true } },
+  { name: "tasks", path: "/tasks", component: () => new TasksPage(), meta: { auth: true } },
+  { path: "/search", component: () => SearchPage(), meta: { auth: true } },
+  { path: "/graph", component: () => new GraphPage(), meta: { auth: true } },
+  { path: "/settings", component: () => SettingsPage(), meta: { auth: true } },
 ];
 
 export const router = createRouter(routes, { mode: "hash" });
+
+// Guardia: las rutas internas requieren sesión (defensa en profundidad
+// además del gate visual del shell).
+import { getToken } from "./api/client";
+router.beforeEach((to) => {
+  const match = router.resolve(to);
+  if (match?.route?.meta?.auth && !getToken()) {
+    return "/";
+  }
+  return undefined;
+});

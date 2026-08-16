@@ -1,8 +1,7 @@
-// Copyright (C) 2026 Zekrost <tech@zekrost.com>
-// SPDX-License-Identifier: AGPL-3.0-only
 import { html, signal, type NixTemplate } from "@deijose/nix-js";
 import { createQuery } from "@deijose/nix-query";
-import { getToken, workspacesApi } from "../../api/client";
+import { authApi, clearToken, getToken, workspacesApi } from "../../api/client";
+import { showToast } from "../../ui/kit";
 
 const ws = createQuery<
   Array<{ id: string; slug: string; name: string; role: string }> | null,
@@ -13,13 +12,36 @@ const ws = createQuery<
   { refetchOnMount: "always" },
 );
 
+const me = createQuery<{ id: string; email: string; display_name: string } | null, void>(
+  "auth/me",
+  async () => (getToken() ? await authApi.me() : null),
+  { refetchOnMount: "always" },
+);
+
 let name = "";
 let slug = "";
+
+function logout(): void {
+  void authApi.logout().catch(() => undefined);
+  clearToken();
+  showToast("Sesión cerrada");
+  window.dispatchEvent(new CustomEvent("hub:logout"));
+}
 
 export function SettingsPage(): NixTemplate {
   return html`
     <section class="page">
-      <h2>Ajustes</h2>
+      <div class="page-header">
+        <h2>Ajustes</h2>
+        <button class="btn ghost" @click=${() => logout()}>Cerrar sesión</button>
+      </div>
+
+      <h3>Cuenta</h3>
+      <div class="ws-card">
+        <span><strong>${() => me.data.value?.display_name ?? "…"}</strong>
+          <span class="muted">${() => me.data.value?.email ?? ""}</span></span>
+        <span class="role-badge">usuario</span>
+      </div>
 
       <h3>Workspaces</h3>
       ${() =>
@@ -35,8 +57,11 @@ export function SettingsPage(): NixTemplate {
         ev.preventDefault();
         workspacesApi
           .create(slug, name)
-          .then(() => ws.refetch())
-          .catch((e: Error) => alert(e.message));
+          .then(() => {
+            ws.refetch();
+            showToast("Workspace creado");
+          })
+          .catch((e: Error) => showToast(e.message));
       }}>
         <input placeholder="slug (minúsculas)" value=${() => slug}
           @input=${(ev: Event) => (slug = (ev.target as HTMLInputElement).value)} />
@@ -53,4 +78,3 @@ export function SettingsPage(): NixTemplate {
     </section>
   `;
 }
-export default SettingsPage;

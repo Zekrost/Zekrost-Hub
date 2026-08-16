@@ -1,7 +1,8 @@
 // Copyright (C) 2026 Zekrost <tech@zekrost.com>
 // SPDX-License-Identifier: AGPL-3.0-only
-import { applyChanges, getCursor, mirrorDoc } from "./local";
+import { applyChanges, getCursor, mirrorDoc, type Change } from "./local";
 import { enqueue, clearQueue } from "./queue";
+import { apiFetch, getToken } from "../api/client";
 import { showToast } from "../ui/kit";
 
 // Cliente del sync delta (sección 9): push de la cola offline + pull
@@ -21,31 +22,29 @@ export async function pushPending(): Promise<void> {
   inFlight = true;
   try {
     await pull(); // primero converger: menos conflictos LWW
-    const token = localStorage.getItem("hub:token");
-    if (!token) return;
+    if (!getToken()) return;
 
     // comandos pendientes de la cola Dexie
     const commands = await queueCommands();
     if (commands.length === 0) return;
 
-    const res = await fetch("/api/v1/sync/push", {
-      method: "POST",
-      headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
-      body: JSON.stringify({ commands }),
-    });
-    if (res.status === 401 || res.status === 403) {
-      // sin permiso: se descarta la cola (el servidor decidió) y se avisa
+    try {
+      const delta = await apiFetch<{ cursor: number; changes: Change[] }>("/sync/push", {
+        method: "POST",
+        body: JSON.stringify({ commands }),
+      });
+      await applyChanges(delta.changes ?? [], delta.cursor ?? (await getCursor()));
       await clearQueue();
-      showToast("sincronización rechazada por el servidor");
-      return;
+    } catch (e) {
+      // 403 = sin permiso tras refresh válido: se descarta la cola (el
+      // servidor decidió) y se avisa. 401/transitorio: la cola se
+      // conserva y se reintenta al reconectar (nunca perder datos).
+      const msg = (e as Error).message ?? String(e);
+      if (msg.includes("HTTP 403")) {
+        await clearQueue();
+        showToast("sincronización rechazada por el servidor");
+      }
     }
-    if (!res.ok) {
-      // error transitorio: la cola se conserva y se reintenta al reconectar
-      return;
-    }
-    const delta = await res.json();
-    await applyChanges(delta.changes ?? [], delta.cursor ?? (await getCursor()));
-    await clearQueue();
   } finally {
     inFlight = false;
   }
@@ -53,15 +52,14 @@ export async function pushPending(): Promise<void> {
 
 // pull trae el delta desde el cursor local y lo aplica al mirror.
 export async function pull(): Promise<void> {
-  const token = localStorage.getItem("hub:token");
-  if (!token) return;
+  if (!getToken()) return;
   const since = await getCursor();
-  const res = await fetch(`/api/v1/sync/changes?since=${since}`, {
-    headers: { Authorization: `Bearer ${token}` },
-  });
-  if (!res.ok) return;
-  const delta = await res.json();
-  await applyChanges(delta.changes ?? [], delta.cursor ?? since);
+  const delta = await apiFetch<{ cursor: number; changes: Change[] }>(
+    `/sync/changes?since=${since}`,
+  ).catch(() => null);
+  if (delta) {
+    await applyChanges(delta.changes ?? [], delta.cursor ?? since);
+  }
 }
 
 // queueDocUpdate registra una edición offline: actualiza el mirror y

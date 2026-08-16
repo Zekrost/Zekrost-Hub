@@ -13,3 +13,22 @@ WHERE email = ?;
 SELECT id, email, password_hash, display_name, created_at
 FROM users
 WHERE id = ?;
+
+-- name: CreateRefreshToken :exec
+INSERT INTO refresh_tokens (id, user_id, token_hash, expires_at)
+VALUES (?, ?, ?, ?);
+
+-- name: GetRefreshTokenByID :one
+SELECT id, user_id, token_hash, expires_at, revoked_at
+FROM refresh_tokens
+WHERE id = ?;
+
+-- name: RevokeRefreshToken :exec
+UPDATE refresh_tokens SET revoked_at = datetime('now')
+WHERE id = ?;
+
+-- name: DeleteExpiredRefreshTokens :exec
+DELETE FROM refresh_tokens WHERE expires_at < datetime('now');
+
+-- name: CountUsers :one
+SELECT COUNT(*) FROM users;

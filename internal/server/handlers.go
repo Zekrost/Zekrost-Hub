@@ -3,10 +3,12 @@
 package server
 
 import (
+	"context"
 	"database/sql"
 	"net/http"
 	"strconv"
 	"strings"
+	"time"
 
 	"github.com/gin-gonic/gin"
 	"github.com/oklog/ulid/v2"
@@ -45,6 +47,13 @@ func (s *Server) handleRegister(c *gin.Context) {
 		s.fail(c, http.StatusConflict, "email_exists", "ese email ya está registrado")
 		return
 	}
+
+	// onboarding: workspace "Personal" auto-creado (tipo Notion) para que
+	// el primer doc/tarea funcionen sin pasos intermedios.
+	ws := s.createPersonalWorkspace(c, userID)
+	if ws != nil {
+		c.Set("personal_workspace", ws)
+	}
 	s.issueTokens(c, userID, nil)
 }
 
@@ -72,12 +81,55 @@ func (s *Server) handleLogin(c *gin.Context) {
 	s.issueTokens(c, user.ID, nil)
 }
 
+type refreshRequest struct {
+	RefreshToken string `json:"refresh_token" binding:"required"`
+}
+
+// handleRefresh rota el refresh token: valida firma + BD (no revocado,
+// no expirado), revoca el viejo y emite un par nuevo. Público: el
+// access token puede estar expirado (esa es la razón de refrescar).
 func (s *Server) handleRefresh(c *gin.Context) {
-	// fase 1: rotación de refresh con token hasheado en BD
-	s.fail(c, http.StatusNotImplemented, "not_implemented", "refresh rotativo en construcción")
+	var req refreshRequest
+	if err := c.ShouldBindJSON(&req); err != nil {
+		s.fail(c, http.StatusBadRequest, "bad_request", err.Error())
+		return
+	}
+	userID, jti, err := s.authSvc.ParseRefresh(req.RefreshToken)
+	if err != nil {
+		s.fail(c, http.StatusUnauthorized, "invalid_token", "token de refresco inválido")
+		return
+	}
+
+	row, err := s.queries.GetRefreshTokenByID(c, jti)
+	if err != nil || row.RevokedAt.Valid || !auth.CheckTokenHash(row.TokenHash, req.RefreshToken) {
+		s.fail(c, http.StatusUnauthorized, "invalid_token", "token de refresco revocado o inexistente")
+		return
+	}
+	if row.ExpiresAt < timeNowSQL() {
+		s.fail(c, http.StatusUnauthorized, "invalid_token", "token de refresco expirado")
+		return
+	}
+
+	// rotación atómica: el viejo queda revocado; un segundo refresh con
+	// el mismo token recibe 401 (y el cliente reintenta con el nuevo).
+	if err := s.queries.RevokeRefreshToken(c, jti); err != nil {
+		s.fail(c, http.StatusInternalServerError, "internal", "no se pudo rotar el token")
+		return
+	}
+	go func() { _ = s.queries.DeleteExpiredRefreshTokens(context.Background()) }()
+
+	roles := map[string]string{} // fase MVP: roles por workspace se resuelven en auth/me
+	s.issueTokens(c, userID, roles)
 }
 
 func (s *Server) handleLogout(c *gin.Context) {
+	var req refreshRequest
+	if err := c.ShouldBindJSON(&req); err == nil && req.RefreshToken != "" {
+		_, jti, err := s.authSvc.ParseRefresh(req.RefreshToken)
+		if err == nil {
+			_ = s.queries.RevokeRefreshToken(c, jti)
+		}
+	}
 	c.JSON(http.StatusNoContent, nil)
 }
 
@@ -87,9 +139,21 @@ func (s *Server) issueTokens(c *gin.Context, userID string, roles map[string]str
 		s.fail(c, http.StatusInternalServerError, "internal", "no se pudo firmar el token")
 		return
 	}
-	refresh, err := s.authSvc.RefreshToken(userID)
+	refresh, jti, err := s.authSvc.RefreshToken(userID)
 	if err != nil {
 		s.fail(c, http.StatusInternalServerError, "internal", "no se pudo firmar el refresh")
+		return
+	}
+	hash, err := auth.HashToken(refresh)
+	if err != nil {
+		s.fail(c, http.StatusInternalServerError, "internal", "no se pudo hashear el refresh")
+		return
+	}
+	if err := s.queries.CreateRefreshToken(c, db.CreateRefreshTokenParams{
+		ID: jti, UserID: userID, TokenHash: hash,
+		ExpiresAt: time.Now().Add(s.cfg.RefreshTTL).Format("2006-01-02 15:04:05"),
+	}); err != nil {
+		s.fail(c, http.StatusInternalServerError, "internal", "no se pudo persistir el refresh")
 		return
 	}
 	c.JSON(http.StatusOK, gin.H{
@@ -97,6 +161,28 @@ func (s *Server) issueTokens(c *gin.Context, userID string, roles map[string]str
 		"refresh_token": refresh,
 		"expires_in":    int(s.cfg.AccessTTL.Seconds()),
 	})
+}
+
+// handleMe devuelve el usuario autenticado (para Ajustes).
+func (s *Server) handleMe(c *gin.Context) {
+	userID := c.GetString("user_id")
+	user, err := s.queries.GetUserByID(c, userID)
+	if err != nil {
+		s.fail(c, http.StatusNotFound, "not_found", "usuario no encontrado")
+		return
+	}
+	c.JSON(http.StatusOK, gin.H{"id": user.ID, "email": user.Email, "display_name": user.DisplayName})
+}
+
+// handleAuthStatus expone si existen usuarios (primer arranque de
+// desktop/Docker: la UI muestra "Crear cuenta" por defecto).
+func (s *Server) handleAuthStatus(c *gin.Context) {
+	n, err := s.queries.CountUsers(c)
+	if err != nil {
+		s.fail(c, http.StatusInternalServerError, "internal", "error de base de datos")
+		return
+	}
+	c.JSON(http.StatusOK, gin.H{"has_users": n > 0})
 }
 
 // ----------------------------- Workspaces -----------------------------
@@ -580,4 +666,31 @@ func boolToInt64(b bool) int64 {
 		return 1
 	}
 	return 0
+}
+
+
+// createPersonalWorkspace crea (o reutiliza) el workspace "Personal" del
+// usuario. Devuelve nil si falla (el registro no debe romperse por esto).
+func (s *Server) createPersonalWorkspace(c *gin.Context, userID string) *workspaceCtx {
+	slug := "personal"
+	for attempt := 0; attempt < 3; attempt++ {
+		id := ulid.Make().String()
+		err := s.queries.CreateWorkspace(c, db.CreateWorkspaceParams{
+			ID: id, Slug: slug, Name: "Personal", OwnerID: userID,
+		})
+		if err == nil {
+			if err := s.queries.AddMembership(c, db.AddMembershipParams{
+				UserID: userID, WorkspaceID: id, Role: "owner",
+			}); err == nil {
+				return &workspaceCtx{id: id, slug: slug, role: "owner"}
+			}
+			return nil
+		}
+		slug = "personal-" + ulid.Make().String()[:8]
+	}
+	return nil
+}
+
+func timeNowSQL() string {
+	return time.Now().Format("2006-01-02 15:04:05")
 }

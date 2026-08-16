@@ -78,15 +78,14 @@ export async function setCursor(cursor: number): Promise<void> {
   await localDB.meta.put({ key: "cursor", value: String(cursor) });
 }
 
+export interface Change {
+  seq: number;
+  op: string;
+  doc?: { id: string; path: string; title: string; content: string; content_hash: string; updated_at: string };
+}
+
 // applyChanges aplica un delta del servidor al mirror local.
-export async function applyChanges(
-  changes: Array<{
-    seq: number;
-    op: string;
-    doc?: { id: string; path: string; title: string; content: string; content_hash: string; updated_at: string };
-  }>,
-  cursor: number,
-): Promise<void> {
+export async function applyChanges(changes: Change[], cursor: number): Promise<void> {
   for (const ch of changes) {
     if (ch.op === "delete") {
       const id = ch.doc?.id;

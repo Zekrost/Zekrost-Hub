@@ -59,11 +59,13 @@ func (s *Server) Router(webFS fs.FS) *gin.Engine {
 	{
 		api.POST("/auth/register", s.handleRegister)
 		api.POST("/auth/login", s.handleLogin)
+		api.POST("/auth/refresh", s.handleRefresh)
+		api.GET("/auth/status", s.handleAuthStatus)
 
 		authed := api.Group("", s.authMiddleware())
 		{
-			authed.POST("/auth/refresh", s.handleRefresh)
 			authed.POST("/auth/logout", s.handleLogout)
+			authed.GET("/auth/me", s.handleMe)
 
 			authed.GET("/workspaces", s.handleListWorkspaces)
 			authed.POST("/workspaces", s.handleCreateWorkspace)

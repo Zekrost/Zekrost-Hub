@@ -7,11 +7,15 @@
 package auth
 
 import (
+	"crypto/sha256"
+	"crypto/subtle"
+	"encoding/hex"
 	"errors"
 	"fmt"
 	"time"
 
 	"github.com/golang-jwt/jwt/v5"
+	"github.com/oklog/ulid/v2"
 	"golang.org/x/crypto/bcrypt"
 )
 
@@ -56,6 +60,7 @@ func (s *Service) AccessToken(userID string, roles map[string]string) (string, e
 	return s.sign(Claims{
 		RolesByWorkspace: roles,
 		RegisteredClaims: jwt.RegisteredClaims{
+			ID:        ulid.Make().String(), // jti: cada emisión es única
 			Subject:   userID,
 			IssuedAt:  jwt.NewNumericDate(time.Now()),
 			ExpiresAt: jwt.NewNumericDate(time.Now().Add(s.accessTTL)),
@@ -63,14 +68,34 @@ func (s *Service) AccessToken(userID string, roles map[string]string) (string, e
 	})
 }
 
-// RefreshToken emite el claim de rotación (token sin expirar en el JWT:
-// la expiración se gestiona en BD para permitir revocación).
-func (s *Service) RefreshToken(userID string) (string, error) {
-	return s.sign(jwt.RegisteredClaims{
+// RefreshToken emite un refresh token con jti (id de rotación). La
+// expiración se valida en JWT Y en BD (revocación). Devuelve el token y
+// su jti para persistir el hash.
+func (s *Service) RefreshToken(userID string) (string, string, error) {
+	jti := ulid.Make().String()
+	tok, err := s.sign(jwt.RegisteredClaims{
+		ID:        jti,
 		Subject:   userID,
 		IssuedAt:  jwt.NewNumericDate(time.Now()),
 		ExpiresAt: jwt.NewNumericDate(time.Now().Add(s.refreshTTL)),
 	})
+	return tok, jti, err
+}
+
+// ParseRefresh valida un refresh token (firma + expiración) y devuelve
+// el userID y el jti para la rotación.
+func (s *Service) ParseRefresh(raw string) (userID, jti string, err error) {
+	claims := &jwt.RegisteredClaims{}
+	tok, err := jwt.ParseWithClaims(raw, claims, func(t *jwt.Token) (any, error) {
+		if _, ok := t.Method.(*jwt.SigningMethodHMAC); !ok {
+			return nil, ErrInvalidToken
+		}
+		return s.secret, nil
+	})
+	if err != nil || !tok.Valid {
+		return "", "", fmt.Errorf("%w: %v", ErrInvalidToken, err)
+	}
+	return claims.Subject, claims.ID, nil
 }
 
 // ParseAccess valida un access token y devuelve los claims.
@@ -89,10 +114,21 @@ func (s *Service) ParseAccess(raw string) (*Claims, error) {
 }
 
 // HashToken hashea un refresh token antes de almacenarlo (revocación sin
-// almacenar el token en claro).
+// almacenar el token en claro). SHA-256: los JWT superan los 72 bytes y
+// bcrypt los truncaría.
 func HashToken(raw string) (string, error) {
-	b, err := bcrypt.GenerateFromPassword([]byte(raw), BcryptCost)
-	return string(b), err
+	h := sha256.Sum256([]byte(raw))
+	return hex.EncodeToString(h[:]), nil
+}
+
+// CheckTokenHash compara en tiempo constante un token con su hash.
+func CheckTokenHash(hash, raw string) bool {
+	want, err := hex.DecodeString(hash)
+	if err != nil {
+		return false
+	}
+	got := sha256.Sum256([]byte(raw))
+	return subtle.ConstantTimeCompare(want, got[:]) == 1
 }
 
 func (s *Service) sign(c jwt.Claims) (string, error) {
