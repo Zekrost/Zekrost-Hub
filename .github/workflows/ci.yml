@@ -114,12 +114,9 @@ jobs:
           goreleaser release --clean > /tmp/goreleaser.log 2>&1
           EXIT=$?
           if [ $EXIT -ne 0 ]; then
-            tail -50 /tmp/goreleaser.log | sed 's/%/%25/g; s/
-/%0A/g; s//%0D/g' | while read -r line; do
-              echo "::error::$line"
-            done
+            tail -60 /tmp/goreleaser.log
+            python3 -c "import sys;[print('::error::'+l.replace('%','%25').replace(chr(10),'%0A').replace(chr(13),'%0D')) for l in open('/tmp/goreleaser.log').read().splitlines()[-40:]]"
           fi
-          cat /tmp/goreleaser.log
           exit $EXIT
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
