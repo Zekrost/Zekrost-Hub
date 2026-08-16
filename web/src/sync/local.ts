@@ -99,13 +99,20 @@ export async function applyChanges(changes: Change[], cursor: number): Promise<v
       continue;
     }
     if (!ch.doc) continue;
-    // el servidor puede asignar un id distinto al local (mismo path):
-    // nunca duplicar, adoptar el id canónico.
+    // Un doc creado localmente (id local-*) conserva su id: la UI ya
+    // navega con él. El id del servidor solo se adopta para docs que no
+    // existen localmente (evita duplicados por path sin romper la
+    // navegación).
     const byPath = await localDB.docs.where("path").equals(ch.doc.path).first();
-    if (byPath && byPath.id !== ch.doc.id) {
-      await localDB.docs.delete(byPath.id);
-      await localDB.tasks.where("docId").equals(byPath.id).delete();
-      await localDB.meta.delete("idx:" + byPath.id);
+    if (byPath) {
+      await localDB.docs.update(byPath.id, {
+        title: ch.doc.title,
+        content: ch.doc.content,
+        contentHash: ch.doc.content_hash,
+        updatedAt: ch.doc.updated_at,
+        deleted: 0,
+      });
+      continue;
     }
     await localDB.docs.put({
       id: ch.doc.id,
