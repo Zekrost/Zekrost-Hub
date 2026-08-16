@@ -8,9 +8,10 @@ project_name: hub
 before:
   hooks:
     - go mod tidy
-    - cd web && npm ci
-    - cd web && npm run build
-    - rm -rf internal/web/dist && cp -r web/dist internal/web/dist
+    - npm --prefix web ci
+    - npm --prefix web run build
+    - rm -rf internal/web/dist
+    - cp -r web/dist internal/web/dist
     - sqlc generate
 
 builds:
