@@ -85,7 +85,7 @@ export class App extends NixComponent {
     // sin sesión; la pantalla auth se superpone. Evita re-mounts del
     // RouterView en transiciones de sesión.
     return html`
-      <div class="app-shell">
+      <div class="app-shell" style=${() => (this.authed.value ? "" : "grid-template-columns: 1fr")}>
         <aside class="sidebar ${() => (this.sidebarOpen.value ? "open" : "")}"
           style=${() => (this.authed.value ? "" : "display:none")}>
           <div class="logo">
