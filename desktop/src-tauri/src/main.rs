@@ -38,7 +38,7 @@ fn main() {
             let port = free_port()?;
             let url = format!("http://127.0.0.1:{}/", port);
 
-            let sidecar = app.shell().sidecar("hub")?;
+            let sidecar = app.shell().sidecar("zekrost-hub")?;
             let (mut rx, child) = sidecar
                 .envs([
                     ("HUB_BIND", format!("127.0.0.1:{}", port)),
@@ -48,7 +48,7 @@ fn main() {
                     ("GIN_MODE", "release".into()),
                 ])
                 .spawn()
-                .map_err(|e| format!("no se pudo lanzar el sidecar hub: {}", e))?;
+                .map_err(|e| format!("no se pudo lanzar el sidecar zekrost-hub: {}", e))?;
 
             *app.state::<ServerState>().0.lock().unwrap() = Some(child);
 

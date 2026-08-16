@@ -7,7 +7,7 @@ SHELL := /bin/bash
 GO      := go
 GOFLAGS ?=
 VERSION ?= dev
-BIN     := bin/hub
+BIN     := bin/zekrost-hub
 LDFLAGS := -s -w -X github.com/zekrost/hub/internal/server.Version=$(VERSION)
 
 .PHONY: all dev build frontend generate db test vet lint run docker desktop-dev desktop-build clean

@@ -17,8 +17,8 @@ const triple = execSync("rustc --print host-tuple", { stdio: ["ignore", "pipe", 
   .trim();
 
 mkdirSync(binDir, { recursive: true });
-const tmp = join(binDir, `hub-tmp${ext}`);
-const final = join(binDir, `hub-${triple}${ext}`);
+const tmp = join(binDir, `zekrost-hub-tmp${ext}`);
+const final = join(binDir, `zekrost-hub-${triple}${ext}`);
 
 console.log(`[sidecar] go build (${triple}) v${version}`);
 execSync(`go build -ldflags "-s -w -X github.com/zekrost/hub/internal/server.Version=${version}" -o ${tmp} ./cmd/hub`, {

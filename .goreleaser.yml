@@ -3,7 +3,7 @@
 # darwin, windows. Versionado semver estricto.
 version: 2
 
-project_name: hub
+project_name: zekrost-hub
 
 before:
   hooks:
@@ -17,7 +17,7 @@ before:
 builds:
   - id: hub
     main: ./cmd/hub
-    binary: hub
+    binary: zekrost-hub
     ldflags:
       - -s -w -X github.com/zekrost/hub/internal/server.Version={{ .Version }}
     env:
