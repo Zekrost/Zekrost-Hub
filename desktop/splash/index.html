@@ -1,0 +1,47 @@
+<!doctype html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Zekrost Hub</title>
+  <style>
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    body {
+      background: #0a0b0f;
+      color: #e6e8ee;
+      font-family: system-ui, -apple-system, "Segoe UI", sans-serif;
+      display: grid;
+      place-items: center;
+      height: 100vh;
+      user-select: none;
+    }
+    .box { text-align: center; }
+    .mark {
+      width: 56px; height: 56px; margin: 0 auto 18px;
+      background: linear-gradient(135deg, #6366f1, #8b5cf6);
+      border-radius: 14px;
+      display: grid; place-items: center;
+      color: #fff; font-size: 26px; font-weight: 800;
+      box-shadow: 0 8px 28px rgba(99, 102, 241, 0.35);
+    }
+    h1 { font-size: 17px; font-weight: 600; letter-spacing: -0.01em; }
+    p { margin-top: 8px; color: #8b8f9e; font-size: 13px; }
+    .spinner {
+      width: 16px; height: 16px; margin: 18px auto 0;
+      border-radius: 50%;
+      border: 2px solid #232633;
+      border-top-color: #6366f1;
+      animation: spin .8s linear infinite;
+    }
+    @keyframes spin { to { transform: rotate(360deg); } }
+  </style>
+</head>
+<body>
+  <div class="box">
+    <div class="mark">Z</div>
+    <h1>Zekrost Hub</h1>
+    <p>Iniciando el workspace local…</p>
+    <div class="spinner"></div>
+  </div>
+</body>
+</html>

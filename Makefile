@@ -10,7 +10,7 @@ VERSION ?= dev
 BIN     := bin/hub
 LDFLAGS := -s -w -X github.com/zekrost/hub/internal/server.Version=$(VERSION)
 
-.PHONY: all dev build frontend generate db test vet lint run docker clean
+.PHONY: all dev build frontend generate db test vet lint run docker desktop-dev desktop-build clean
 
 all: build
 
@@ -45,6 +45,17 @@ vet:
 ## docker: imagen multi-stage con binario final
 docker:
 	docker build -t zekrost/hub:$(VERSION) .
+
+## desktop-dev: sidecar + shell Tauri en modo desarrollo
+desktop-dev:
+	cd desktop && npm install
+	cd desktop && npm run build:sidecar
+	cd desktop && npm run dev
+
+## desktop-build: instalables nativos (.deb/.AppImage/.msi/.exe/.dmg)
+desktop-build:
+	cd desktop && npm install
+	cd desktop && npm run build
 
 ## run: ejecuta el binario local
 run: build

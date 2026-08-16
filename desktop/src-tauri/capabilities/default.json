@@ -1,0 +1,7 @@
+{
+  "$schema": "../gen/schemas/desktop-schema.json",
+  "identifier": "default",
+  "description": "Capability de la ventana principal — la app no usa IPC del frontend (la UI vive en el servidor Go local).",
+  "windows": ["main"],
+  "permissions": ["core:default"]
+}

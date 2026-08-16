@@ -91,6 +91,33 @@ Open [http://localhost:8080](http://localhost:8080).
   <img src="screenshots/graph.png" alt="Knowledge graph" width="49%" />
 </p>
 
+## Desktop app
+
+Zekrost Hub también se distribuye como **aplicación de escritorio nativa** (Tauri 2): un shell de ~3 MB que embebe el binario Go como *sidecar* y lo ejecuta en `127.0.0.1` con tus datos en tu carpeta local — 100% offline.
+
+Instalables por plataforma (GitHub Releases):
+
+| Plataforma | Instalable |
+|:--|:--|
+| Linux | `.deb` y `.AppImage` (x86_64) |
+| Windows | `.msi` e instalador `.exe` (NSIS) |
+| macOS | `.dmg` (Intel y Apple Silicon) |
+
+> Sin firma por ahora: Windows SmartScreen y macOS Gatekeeper mostrarán una advertencia en la primera ejecución (habitual en open source). Datos en `~/.local/share/dev.zekrost.hub/` (Linux), `~/Library/Application Support/dev.zekrost.hub/` (macOS) o `%APPDATA%\dev.zekrost.hub\` (Windows).
+
+### Desarrollo local de la app de escritorio
+
+Prerequisitos (una vez): [Rust](https://rustup.rs) y las dependencias de sistema de Tauri — en Debian/Ubuntu/Mint:
+
+```bash
+sudo apt install libwebkit2gtk-4.1-dev build-essential curl wget file libxdo-dev libssl-dev libayatana-appindicator3-dev librsvg2-dev
+```
+
+```bash
+make desktop-dev     # compila el sidecar y lanza la app con hot reload
+make desktop-build   # genera los instalables en desktop/src-tauri/target/release/bundle/
+```
+
 ## Development
 
 Requirements: [Go 1.26+](https://go.dev/dl), [Node.js 22+](https://nodejs.org), [sqlc](https://sqlc.dev) v1.31.

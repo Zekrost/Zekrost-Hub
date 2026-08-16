@@ -4,6 +4,18 @@ Todos los cambios notables de Zekrost Hub se documentan aquí.
 Formato basado en [Keep a Changelog](https://keepachangelog.com/es/1.1.0/) y
 [Semantic Versioning](https://semver.org/lang/es/).
 
+## [0.1.1] — 2026-08-16
+
+### Added
+
+- **App de escritorio (Tauri 2)**: shell nativo que embebe el binario Go como
+  sidecar en `127.0.0.1` con datos locales (100% offline). Instalables para
+  Linux (`.deb`/`.AppImage`), Windows (`.msi`/`.exe` NSIS) y macOS (`.dmg`
+  Intel y Apple Silicon), construidos en CI por plataforma.
+- Splash de arranque, single-instance, cierre limpio del sidecar.
+- `desktop/` aislado del resto: `Makefile` (`desktop-dev`/`desktop-build`),
+  workflow `desktop.yml`, iconos generados.
+
 ## [0.1.0] — 2026-08-15
 
 Primera release pública. MVP completo de la Fase 0 y parte de la Fase 1
