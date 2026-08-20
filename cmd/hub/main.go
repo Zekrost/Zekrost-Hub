@@ -53,7 +53,7 @@ func main() {
 	}
 
 	go func() {
-		logger.Info("zekrost hub arrancando", "addr", cfg.BindAddr, "version", server.Version)
+		logger.Info("kora hub arrancando", "addr", cfg.BindAddr, "version", server.Version)
 		if err := httpSrv.ListenAndServe(); err != nil && !errors.Is(err, http.ErrServerClosed) {
 			logger.Error("servidor", "err", err)
 			os.Exit(1)

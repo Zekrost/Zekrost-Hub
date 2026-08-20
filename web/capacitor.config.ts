@@ -5,8 +5,8 @@ import type { CapacitorConfig } from "@capacitor/cli";
 // ADR-05: Capacitor directo, sin Ionic. Un solo dist/ alimenta web,
 // PWA, iOS y Android (sección 8.2).
 const config: CapacitorConfig = {
-  appId: "dev.zekrost.hub",
-  appName: "Zekrost Hub",
+  appId: "dev.kora.hub",
+  appName: "Kora Hub",
   webDir: "dist",
   server: {
     androidScheme: "https",

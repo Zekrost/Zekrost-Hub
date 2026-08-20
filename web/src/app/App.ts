@@ -98,8 +98,8 @@ export class App extends NixComponent {
         <aside class="sidebar ${() => (this.sidebarOpen.value ? "open" : "")}"
           style=${() => (this.authed.value ? "" : "display:none")}>
           <div class="logo">
-            <div class="logo-mark">Z</div>
-            <span>Zekrost Hub</span>
+            <div class="logo-mark">K</div>
+            <span>Kora Hub</span>
           </div>
           <div class="sidebar-search">
             <input placeholder="Buscar en el workspace..."
@@ -168,7 +168,7 @@ export class App extends NixComponent {
             </button>
             <div class="doc-breadcrumb">
               <span class="ws-tag">
-                ${() => this.workspaces.value.find((w) => w.id === activeWs.value)?.name ?? "Zekrost Hub"}
+                ${() => this.workspaces.value.find((w) => w.id === activeWs.value)?.name ?? "Kora Hub"}
               </span>
               <span class="sep">/</span>
               <span class="doc-name">

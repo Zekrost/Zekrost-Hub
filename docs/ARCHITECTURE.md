@@ -1,6 +1,6 @@
 # Architecture
 
-This document describes the technical architecture of Zekrost Hub. It is a public, condensed version of the internal engineering specification.
+This document describes the technical architecture of Kora Hub. It is a public, condensed version of the internal engineering specification.
 
 ## Design principles
 

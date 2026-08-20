@@ -1,10 +1,10 @@
 <div align="center">
 
-# Zekrost Hub
+# Kora Hub
 
 **Your docs and your tasks in one place — self-hosted, offline-first, and fast like a native app.**
 
-Write in Markdown. Keep your tasks *inside* your documents. Zekrost Hub turns them into a kanban, a table, and a calendar automatically — because **the files are the source of truth, and everything else is just a lens on the same data**.
+Write in Markdown. Keep your tasks *inside* your documents. Kora Hub turns them into a kanban, a table, and a calendar automatically — because **the files are the source of truth, and everything else is just a lens on the same data**.
 
 [![License](https://img.shields.io/badge/license-AGPL--3.0-blue)](LICENSE)
 [![Go](https://img.shields.io/badge/Go-1.26-00ADD8?logo=go&logoColor=white)](https://go.dev)
@@ -18,7 +18,7 @@ Write in Markdown. Keep your tasks *inside* your documents. Zekrost Hub turns th
 ---
 
 <p align="center">
-  <img src="screenshots/kanban.png" alt="Zekrost Hub kanban" width="100%" />
+  <img src="screenshots/kanban.png" alt="Kora Hub kanban" width="100%" />
 </p>
 
 ## What is it?
@@ -66,7 +66,7 @@ docker run -d \
   -v hub-data:/data \
   -p 8080:8080 \
   -e HUB_JWT_SECRET=<your-secret> \
-  ghcr.io/zekrost/zekrost-hub:latest
+  ghcr.io/zekrost/kora-hub:latest
 ```
 
 Open [http://localhost:8080](http://localhost:8080).
@@ -93,7 +93,7 @@ Open [http://localhost:8080](http://localhost:8080).
 
 ## Desktop app
 
-Zekrost Hub también se distribuye como **aplicación de escritorio nativa** (Tauri 2): un shell de ~3 MB que embebe el binario Go como *sidecar* y lo ejecuta en `127.0.0.1` con tus datos en tu carpeta local — 100% offline.
+Kora Hub también se distribuye como **aplicación de escritorio nativa** (Tauri 2): un shell de ~3 MB que embebe el binario Go como *sidecar* y lo ejecuta en `127.0.0.1` con tus datos en tu carpeta local — 100% offline.
 
 Instalables por plataforma (GitHub Releases):
 
@@ -201,7 +201,7 @@ Full endpoint reference is in [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md).
 
 ## Contributing
 
-Issues, ideas and pull requests are welcome. We dogfood the product — Zekrost and BikerOS are managed with Zekrost Hub.
+Issues, ideas and pull requests are welcome. We dogfood the product — Zekrost and BikerOS are managed with Kora Hub.
 
 Before submitting a PR, please open an issue or comment on an existing one so the approach is agreed on before code is written.
 

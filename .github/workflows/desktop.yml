@@ -60,7 +60,7 @@ jobs:
         with:
           projectPath: desktop
           tagName: v__VERSION__
-          releaseName: "Zekrost Hub v__VERSION__"
+          releaseName: "Kora Hub v__VERSION__"
           releaseDraft: false
           prerelease: false
 
@@ -73,7 +73,7 @@ jobs:
         if: ${{ !startsWith(github.ref, 'refs/tags/') }}
         uses: actions/upload-artifact@v4
         with:
-          name: zekrost-hub-${{ matrix.name }}
+          name: kora-hub-${{ matrix.name }}
           path: |
             desktop/src-tauri/target/release/bundle/deb/*.deb
             desktop/src-tauri/target/release/bundle/appimage/*.AppImage
