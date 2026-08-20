@@ -7,9 +7,9 @@
   <style>
     * { margin: 0; padding: 0; box-sizing: border-box; }
     body {
-      background: #1b2a4a;
-      color: #eef4fb;
-      font-family: system-ui, -apple-system, "Segoe UI", sans-serif;
+      background: #f8f9fa;
+      color: #1b2a4a;
+      font-family: "Poppins", "Inter", system-ui, sans-serif;
       display: grid;
       place-items: center;
       height: 100vh;
@@ -17,19 +17,20 @@
     }
     .box { text-align: center; }
     .mark {
-      width: 56px; height: 56px; margin: 0 auto 18px;
-      background: linear-gradient(135deg, #1b2a4a, #00b4d8);
-      border-radius: 14px;
+      width: 88px; height: 88px; margin: 0 auto 20px;
+      background: #fff;
+      border-radius: 22px;
       display: grid; place-items: center;
-      color: #fff; font-size: 26px; font-weight: 800;
-      box-shadow: 0 8px 28px rgba(0, 180, 216, 0.35);
+      box-shadow: 0 8px 28px rgba(27, 42, 74, 0.12);
+      overflow: hidden;
     }
-    h1 { font-size: 17px; font-weight: 600; letter-spacing: -0.01em; }
-    p { margin-top: 8px; color: #b6c6da; font-size: 13px; }
+    .mark img { width: 100%; height: 100%; object-fit: cover; }
+    h1 { font-size: 18px; font-weight: 600; letter-spacing: -0.01em; }
+    p { margin-top: 8px; color: #46597a; font-size: 13px; }
     .spinner {
-      width: 16px; height: 16px; margin: 18px auto 0;
+      width: 16px; height: 16px; margin: 20px auto 0;
       border-radius: 50%;
-      border: 2px solid #2a3f63;
+      border: 2px solid #d5dde7;
       border-top-color: #00b4d8;
       animation: spin .8s linear infinite;
     }
@@ -38,7 +39,7 @@
 </head>
 <body>
   <div class="box">
-    <div class="mark">K</div>
+    <div class="mark"><img src="kora-hub-logo.png" alt="Kora Hub" /></div>
     <h1>Kora Hub</h1>
     <p>Iniciando el workspace local…</p>
     <div class="spinner"></div>

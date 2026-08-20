@@ -95,10 +95,10 @@ export class App extends NixComponent {
     // RouterView en transiciones de sesión.
     return html`
       <div class="app-shell" style=${() => (this.authed.value ? "" : "grid-template-columns: 1fr")}>
-        <aside class="sidebar ${() => (this.sidebarOpen.value ? "open" : "")}"
+        <aside class=${"sidebar" + (this.sidebarOpen.value ? " open" : "")}
           style=${() => (this.authed.value ? "" : "display:none")}>
           <div class="logo">
-            <div class="logo-mark">K</div>
+            <div class="logo-mark"><img src="/kora-hub-logo.png" alt="Kora Hub" /></div>
             <span>Kora Hub</span>
           </div>
           <div class="sidebar-search">

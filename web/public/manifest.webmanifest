@@ -1,10 +1,28 @@
 {
-  "name": "Zekrost Hub",
-  "short_name": "Zekrost Hub",
+  "name": "Kora Hub",
+  "short_name": "Kora Hub",
   "description": "El workspace donde la documentación y la ejecución son la misma cosa.",
   "start_url": "/",
   "display": "standalone",
-  "background_color": "#1a1a2e",
-  "theme_color": "#1a1a2e",
-  "lang": "es"
+  "background_color": "#f8f9fa",
+  "theme_color": "#1b2a4a",
+  "lang": "es",
+  "icons": [
+    {
+      "src": "/icons/icon-192.png",
+      "sizes": "192x192",
+      "type": "image/png"
+    },
+    {
+      "src": "/icons/icon-512.png",
+      "sizes": "512x512",
+      "type": "image/png"
+    },
+    {
+      "src": "/icons/icon-512-maskable.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "maskable"
+    }
+  ]
 }

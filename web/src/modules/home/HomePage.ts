@@ -45,7 +45,7 @@ export class HomePage extends NixComponent {
     return html`
       <div class="login-view">
         <div class="login-card">
-          <div class="logo-mark">K</div>
+          <div class="logo-mark login-mark"><img src="/kora-hub-logo.png" alt="Kora Hub" /></div>
           <h2>Kora Hub</h2>
           <p class="login-sub">El workspace donde la documentación y la ejecución son la misma cosa.</p>
           <div class="tabs" style="margin-bottom: 16px">
